@@ -1,0 +1,34 @@
+﻿<Window x:Class="SvadbeniSalon.WinUI.Views.MainMenuPage"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:SvadbeniSalon.WinUI.Views"
+        xmlns:HamburgerMenu="clr-namespace:HamburgerMenu;assembly=HamburgerMenu"
+        xmlns:custom="clr-namespace:SvadbeniSalon.WinUI.Controls"
+        mc:Ignorable="d"
+             xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+        Title="Svadbeni Salon Rimac" Height="450" Width="800">
+
+    <Grid Background="FloralWhite" >
+        <HamburgerMenu:HamburgerMenu Background="RosyBrown" MenuIconColor="Gray" SelectionIndicatorColor="White" MenuItemForeground="White" HorizontalAlignment="Left">
+            <HamburgerMenu:HamburgerMenuItem Icon="Assets/zaposlenici.png" Text="Zaposlenici"  >
+                <i:Interaction.Triggers>
+                    <i:EventTrigger EventName="OpenSelectedPage">
+                        <i:InvokeCommandAction Command="{Binding OpenPageCommand}"
+                                                   CommandParameter="{Binding ElementName=this_}"></i:InvokeCommandAction>
+                    </i:EventTrigger>
+                </i:Interaction.Triggers>
+
+            </HamburgerMenu:HamburgerMenuItem>
+            <HamburgerMenu:HamburgerMenuItem  Icon="Assets/menu.png" Text="Meni"/>
+            <HamburgerMenu:HamburgerMenuItem Icon="Assets/ponude.png" Text="Ponude"/>
+            <HamburgerMenu:HamburgerMenuItem  Icon="Assets/muzicari.png" Text="Muzicari"/>
+            <HamburgerMenu:HamburgerMenuItem Icon="Assets/dekoracije.png" Text="Dekoracije"/>
+            <HamburgerMenu:HamburgerMenuItem  Icon="Assets/artikli.png" Text="Artikli"/>
+            <HamburgerMenu:HamburgerMenuItem  Icon="Assets/svadbe.png" Text="Svadbe" />
+            <HamburgerMenu:HamburgerMenuItem Icon="Assets/dnevniSastanci.png" Text="Dnevni termini" />
+            <HamburgerMenu:HamburgerMenuItem  Icon="Assets/racuni.png" Text="Racuni" />
+    </HamburgerMenu:HamburgerMenu>
+    </Grid>
+</Window>

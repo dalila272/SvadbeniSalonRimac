@@ -7,15 +7,42 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Flurl" Version="3.0.1" />
-    <PackageReference Include="Flurl.Http" Version="3.0.1" />
-    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.31" />
-    <PackageReference Include="Prism.DryIoc" Version="8.0.0.1909" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.11.0" />
+    <None Remove="Views\Assets\artikli.png" />
+    <None Remove="Views\Assets\dekoracije.png" />
+    <None Remove="Views\Assets\dnevniSastanci.png" />
+    <None Remove="Views\Assets\menu.png" />
+    <None Remove="Views\Assets\muzicari.png" />
+    <None Remove="Views\Assets\ponude.png" />
+    <None Remove="Views\Assets\racuni.png" />
+    <None Remove="Views\Assets\svadbe.png" />
+    <None Remove="Views\Assets\zaposlenici.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Flurl" Version="3.0.2" />
+    <PackageReference Include="Flurl.Http" Version="3.2.0" />
+    <PackageReference Include="HamburgerMenu" Version="0.1.0" />
+    <PackageReference Include="Microsoft.Toolkit" Version="7.1.2" />
+    <PackageReference Include="Microsoft.Toolkit.Uwp.UI.Controls" Version="7.1.2" />
+    <PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.39" />
+    <PackageReference Include="Prism.DryIoc" Version="8.1.97" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.15.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SvadbeniSalon.Shared\SvadbeniSalon.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Views\Assets\artikli.png" />
+    <Resource Include="Views\Assets\dekoracije.png" />
+    <Resource Include="Views\Assets\dnevniSastanci.png" />
+    <Resource Include="Views\Assets\menu.png" />
+    <Resource Include="Views\Assets\muzicari.png" />
+    <Resource Include="Views\Assets\ponude.png" />
+    <Resource Include="Views\Assets\racuni.png" />
+    <Resource Include="Views\Assets\svadbe.png" />
+    <Resource Include="Views\Assets\zaposlenici.png" />
   </ItemGroup>
 
 </Project>

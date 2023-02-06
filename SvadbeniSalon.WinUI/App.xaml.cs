@@ -1,9 +1,7 @@
 ﻿using Prism.DryIoc;
 using Prism.Ioc;
-using Prism.Services.Dialogs;
 using SvadbeniSalon.WinUI.ViewModels;
 using SvadbeniSalon.WinUI.Views;
-using System;
 using System.Windows;
 
 namespace SvadbeniSalon.WinUI
@@ -15,15 +13,15 @@ namespace SvadbeniSalon.WinUI
     {
         protected override Window CreateShell()
         {
-            return Container.Resolve<MainWindow>();
+            return Container.Resolve<MainMenuPage>();
         }
 
         protected override void RegisterTypes(IContainerRegistry containerRegistry)
         {
-
-            containerRegistry.Register<Login>();
+            containerRegistry.RegisterForNavigation<Login, LoginVM>();
+            containerRegistry.RegisterForNavigation<MainMenuPage, MainPageViewModel>();
+            containerRegistry.RegisterForNavigation<Zaposlenici, ZaposleniciViewModel>();
         }
-
         protected override void OnInitialized()
         {
             var loginDialog = Container.Resolve<Login>();
@@ -38,7 +36,6 @@ namespace SvadbeniSalon.WinUI
             {
                 Application.Current.Shutdown();
             }
-
         }
     }
 }

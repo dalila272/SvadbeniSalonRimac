@@ -6,11 +6,8 @@ using SvadbeniSalon.WinUI.Models;
 using SvadbeniSalon.WinUI.Service;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Net;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -29,7 +26,11 @@ namespace SvadbeniSalon.WinUI.ViewModels
         public CustomCommand PasswordChangedCommand { get; set; }
         public Dictionary<string, string> ErrorCollection { get; private set; } = new Dictionary<string, string>();
 
-
+        public LoginVM()
+        {
+            service = new GenericService("users");
+            LoadCommands();
+        }
         public string Username
         {
             get { return _username; }
@@ -48,7 +49,6 @@ namespace SvadbeniSalon.WinUI.ViewModels
                 LoginCommand.RaiseCanExecuteChanged();
             }
         }
-
         public bool LoginIncorrect
         {
             get { return _loginIncorrect; }
@@ -57,16 +57,9 @@ namespace SvadbeniSalon.WinUI.ViewModels
                 SetProperty(ref _loginIncorrect, value);
             }
         }
-
         public string Title => "Login";
 
         public Action Close { get; set; }
-
-        public LoginVM()
-        {
-            service = new GenericService("users");
-            LoadCommands();
-        }
 
         private void LoadCommands()
         {
