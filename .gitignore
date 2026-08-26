@@ -55,7 +55,7 @@ TestResults/
 .env
 .env.*
 !.env.example
-.env-tajne.zip
+!.env-tajne.zip
 *-tajne.zip
 **/secrets/
 **/appsettings.*.local.json
