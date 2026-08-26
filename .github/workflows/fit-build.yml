@@ -1,0 +1,104 @@
+name: Fit build (APK + Windows)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "GitHub Release tag"
+        required: true
+        default: "predaja-2026-08-26-v2"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Build Windows desktop
+        working-directory: UI/desktop
+        run: |
+          flutter config --enable-windows-desktop
+          flutter pub get
+          flutter build windows --release
+
+      - name: Upload Windows Release folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: UI/desktop/build/windows/x64/runner/Release
+
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Build Android APK
+        working-directory: UI/mobile
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: UI/mobile/build/app/outputs/flutter-apk/app-release.apk
+
+  package-release:
+    needs: [build-windows, build-apk]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Compose fit-build zip
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          DATE="${TAG#predaja-}"
+          DATE="${DATE%-v*}"
+          NAME="fit-build-${DATE}"
+          mkdir -p "${NAME}/UI/mobile/build/app/outputs/flutter-apk"
+          mkdir -p "${NAME}/UI/desktop/build/windows/x64/runner"
+          cp artifacts/android-apk/app-release.apk \
+            "${NAME}/UI/mobile/build/app/outputs/flutter-apk/"
+          cp -R artifacts/windows-release \
+            "${NAME}/UI/desktop/build/windows/x64/runner/Release"
+          zip -r "${NAME}.zip" "${NAME}"
+          ls -lh "${NAME}.zip"
+          echo "ZIP_NAME=${NAME}.zip" >> "$GITHUB_ENV"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
+          draft: false
+          files: ${{ env.ZIP_NAME }}
+          body: |
+            Build arhiva za pregled (APK + Windows desktop).
+            `.env` nije u releaseu — koristi `.env-tajne.zip` u rootu repoa.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
