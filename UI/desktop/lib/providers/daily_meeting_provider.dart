@@ -26,7 +26,9 @@ class DailyMeetingProvider extends BaseProvider<DailyMeeting> {
 
   Future<List<DateTime>> getBusySlots() async {
     final url = '${_base()}DnevniSastanci/zauzeti';
-    final response = await http.get(Uri.parse(url), headers: createHeaders());
+    final response = await sendAuthenticated(
+      () => http.get(Uri.parse(url), headers: createHeaders()),
+    );
     validateResponse(response);
     final data = jsonDecode(response.body) as List<dynamic>;
     return data.map((e) => DateTime.parse(e.toString())).toList();
@@ -38,10 +40,12 @@ class DailyMeetingProvider extends BaseProvider<DailyMeeting> {
     if (razlog != null && razlog.trim().isNotEmpty) {
       body['razlog'] = razlog.trim();
     }
-    final response = await http.put(
-      Uri.parse(url),
-      headers: createHeaders(),
-      body: jsonEncode(body),
+    final response = await sendAuthenticated(
+      () => http.put(
+        Uri.parse(url),
+        headers: createHeaders(),
+        body: jsonEncode(body),
+      ),
     );
     validateResponse(response);
   }

@@ -76,11 +76,25 @@ class _WeddingDetailsScreenState extends State<WeddingDetailsScreen> {
   bool get _isFullyPaid =>
       _wedding?.isFullyPaid == true ||
       (_offerPrice > 0 && _paidAmount >= _offerPrice);
+  bool get _weddingDateTimePassed {
+    if (_wedding == null) return false;
+    final d = _wedding!.weddingDate;
+    final parts = _wedding!.time.split(':');
+    final hour = parts.isNotEmpty ? int.tryParse(parts[0]) ?? 0 : 0;
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    final termin = DateTime(d.year, d.month, d.day, hour, minute);
+    return !termin.isAfter(DateTime.now());
+  }
+  bool get _canComplete =>
+      _isEditing &&
+      _wedding!.status == 1 &&
+      _isFullyPaid &&
+      _weddingDateTimePassed;
   bool get _canAddPayment =>
       _isEditing &&
+      _wedding!.status == 1 &&
       !_isFullyPaid &&
-      _wedding!.status != 2 &&
-      _wedding!.status != 3;
+      _payments.length < (_wedding?.installmentCount ?? 0);
 
   @override
   void initState() {
@@ -361,10 +375,27 @@ class _WeddingDetailsScreenState extends State<WeddingDetailsScreen> {
 
     final payment = await showDialog<({double amount, DateTime date})>(
       context: context,
-      builder: (_) => const _AddPaymentDialog(),
+      builder: (_) => _AddPaymentDialog(
+        remainingAmount: _offerPrice - _paidAmount,
+        installmentLabel:
+            '${_payments.length + 1}/${_wedding!.installmentCount}',
+        isLastInstallment:
+            _payments.length + 1 >= _wedding!.installmentCount,
+      ),
     );
 
     if (payment == null || !mounted) return;
+
+    final amountLabel = _currencyFormat.format(payment.amount);
+    final dateLabel = DateFormat('dd.MM.yyyy.').format(payment.date);
+    final confirmed = await FormUx.confirm(
+      context,
+      title: 'Potvrda uplate',
+      message:
+          'Evidentirati uplatu od $amountLabel KM na datum $dateLabel?\n\nOva akcija mijenja finansijsku evidenciju svadbe.',
+      confirmLabel: 'Evidentiraj',
+    );
+    if (!confirmed || !mounted) return;
 
     try {
       final d = payment.date;
@@ -398,6 +429,15 @@ class _WeddingDetailsScreenState extends State<WeddingDetailsScreen> {
       );
       return;
     }
+
+    final confirmed = await FormUx.confirm(
+      context,
+      title: 'Izdavanje računa',
+      message:
+          'Izdati račun za ovu svadbu?\n\nRačun se snima u finansijsku evidenciju i generiše PDF dokument.',
+      confirmLabel: 'Izdaj račun',
+    );
+    if (!confirmed || !mounted) return;
 
     setState(() => _isSaving = true);
     try {
@@ -714,9 +754,20 @@ class _WeddingDetailsScreenState extends State<WeddingDetailsScreen> {
                               ),
                             const SizedBox(height: 16),
                             Text(
-                              'Uplate',
+                              'Uplate (${_payments.length}/${_wedding!.installmentCount} rata)',
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
+                            if (_wedding!.status == 0)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4, bottom: 4),
+                                child: Text(
+                                  'Uplate se mogu evidentirati tek nakon potvrde rezervacije.',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade700,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
                             const SizedBox(height: 8),
                             if (_payments.isEmpty)
                               const Padding(
@@ -792,11 +843,19 @@ class _WeddingDetailsScreenState extends State<WeddingDetailsScreen> {
                                       child: const Text('Otkaži rezervaciju'),
                                     ),
                                   if (_wedding!.status == 1)
-                                    OutlinedButton(
-                                      onPressed: _isSaving
-                                          ? null
-                                          : () => _changeStatus(3),
-                                      child: const Text('Završi'),
+                                    FormUx.disabledHint(
+                                      enabled: _canComplete,
+                                      reason: !_weddingDateTimePassed
+                                          ? 'Termin još nije prošao.'
+                                          : !_isFullyPaid
+                                              ? 'Svadba mora biti u potpunosti plaćena.'
+                                              : 'Završavanje nije moguće.',
+                                      child: OutlinedButton(
+                                        onPressed: (_isSaving || !_canComplete)
+                                            ? null
+                                            : () => _changeStatus(3),
+                                        child: const Text('Završi'),
+                                      ),
                                     ),
                                 ],
                               ),
@@ -888,7 +947,15 @@ class _WeddingDetailsScreenState extends State<WeddingDetailsScreen> {
 }
 
 class _AddPaymentDialog extends StatefulWidget {
-  const _AddPaymentDialog();
+  final double remainingAmount;
+  final String installmentLabel;
+  final bool isLastInstallment;
+
+  const _AddPaymentDialog({
+    required this.remainingAmount,
+    required this.installmentLabel,
+    required this.isLastInstallment,
+  });
 
   @override
   State<_AddPaymentDialog> createState() => _AddPaymentDialogState();
@@ -898,6 +965,15 @@ class _AddPaymentDialogState extends State<_AddPaymentDialog> {
   final _amountController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   DateTime _selectedDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.isLastInstallment && widget.remainingAmount > 0) {
+      _amountController.text =
+          widget.remainingAmount.toStringAsFixed(2).replaceAll('.', ',');
+    }
+  }
 
   @override
   void dispose() {
@@ -933,7 +1009,9 @@ class _AddPaymentDialogState extends State<_AddPaymentDialog> {
     return AlertDialog(
       title: Row(
         children: [
-          const Expanded(child: Text('Dodaj uplatu')),
+          Expanded(
+            child: Text('Dodaj uplatu (rata ${widget.installmentLabel})'),
+          ),
           IconButton(
             icon: const Icon(Icons.close),
             tooltip: 'Zatvori',
@@ -945,10 +1023,21 @@ class _AddPaymentDialogState extends State<_AddPaymentDialog> {
         key: _formKey,
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Text(
+              widget.isLastInstallment
+                  ? 'Posljednja rata mora zatvoriti preostali dug: '
+                      '${widget.remainingAmount.toStringAsFixed(2)} KM.'
+                  : 'Preostalo za uplatu: '
+                      '${widget.remainingAmount.toStringAsFixed(2)} KM.',
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _amountController,
               autofocus: true,
+              readOnly: widget.isLastInstallment,
               decoration: const InputDecoration(
                 labelText: 'Iznos (KM)',
                 prefixIcon: Icon(Icons.payments_outlined),
@@ -964,6 +1053,15 @@ class _AddPaymentDialogState extends State<_AddPaymentDialog> {
                 final normalized = (v ?? '').replaceAll(',', '.').trim();
                 final n = double.tryParse(normalized);
                 if (n == null || n <= 0) return 'Unesite iznos';
+                if (n > widget.remainingAmount + 0.001) {
+                  return 'Iznos premašuje preostalo '
+                      '(${widget.remainingAmount.toStringAsFixed(2)} KM).';
+                }
+                if (widget.isLastInstallment &&
+                    (n - widget.remainingAmount).abs() > 0.01) {
+                  return 'Posljednja rata mora biti tačno '
+                      '${widget.remainingAmount.toStringAsFixed(2)} KM.';
+                }
                 return null;
               },
             ),
@@ -985,7 +1083,7 @@ class _AddPaymentDialogState extends State<_AddPaymentDialog> {
         ),
         ElevatedButton(
           onPressed: _submit,
-          child: const Text('Dodaj'),
+          child: const Text('Dalje'),
         ),
       ],
     );

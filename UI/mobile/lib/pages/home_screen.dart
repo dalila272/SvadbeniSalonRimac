@@ -3,9 +3,11 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:svadbeni_salon_rimac/constants/colors.dart';
 import 'package:svadbeni_salon_rimac/models/daily_meeting.dart';
+import 'package:svadbeni_salon_rimac/models/recommendation.dart';
 import 'package:svadbeni_salon_rimac/models/wedding.dart';
 import 'package:svadbeni_salon_rimac/providers/auth_provider.dart';
 import 'package:svadbeni_salon_rimac/providers/daily_meeting_provider.dart';
+import 'package:svadbeni_salon_rimac/providers/recommendations_provider.dart';
 import 'package:svadbeni_salon_rimac/providers/wedding_provider.dart';
 import 'package:svadbeni_salon_rimac/utils/master_screen.dart';
 import 'package:svadbeni_salon_rimac/utils/routes.dart';
@@ -20,11 +22,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _weddingProvider = WeddingProvider();
   final _meetingProvider = DailyMeetingProvider();
+  final _recommendationsProvider = RecommendationsProvider();
 
   bool _isLoading = true;
   String? _errorMessage;
   Wedding? _activeWedding;
   DailyMeeting? _nextMeeting;
+  List<Recommendation> _recommendations = [];
 
   @override
   void initState() {
@@ -39,35 +43,56 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final weddings = await _weddingProvider.get();
-      final meetings = await _meetingProvider.get();
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      final pendingWeddingFuture = _weddingProvider.get(filter: {
+        'status': 0,
+        'pageSize': 1,
+      });
+      final confirmedWeddingFuture = _weddingProvider.get(filter: {
+        'status': 1,
+        'pageSize': 1,
+      });
+      final pendingMeetingsFuture = _meetingProvider.get(filter: {
+        'status': 0,
+        'datumOd': today.toIso8601String(),
+        'pageSize': 50,
+      });
+      final confirmedMeetingsFuture = _meetingProvider.get(filter: {
+        'status': 1,
+        'datumOd': today.toIso8601String(),
+        'pageSize': 50,
+      });
+      final recommendationsFuture =
+          _recommendationsProvider.fetchRecommendations(limit: 5);
+
+      final pendingWedding = await pendingWeddingFuture;
+      final confirmedWedding = await confirmedWeddingFuture;
+      final pendingMeetings = await pendingMeetingsFuture;
+      final confirmedMeetings = await confirmedMeetingsFuture;
+      final recommendations = await recommendationsFuture;
 
       Wedding? activeWedding;
-      for (final wedding in weddings.items) {
-        if (wedding.isActive) {
-          activeWedding = wedding;
-          break;
-        }
+      if (pendingWedding.items.isNotEmpty) {
+        activeWedding = pendingWedding.items.first;
+      } else if (confirmedWedding.items.isNotEmpty) {
+        activeWedding = confirmedWedding.items.first;
       }
 
-      final now = DateTime.now();
-      DailyMeeting? nextMeeting;
-      for (final meeting in meetings.items) {
-        final isUpcoming = !meeting.meetingDate.isBefore(
-          DateTime(now.year, now.month, now.day),
-        );
-        if ((meeting.status == 0 || meeting.status == 1) && isUpcoming) {
-          if (nextMeeting == null ||
-              meeting.meetingDate.isBefore(nextMeeting.meetingDate)) {
-            nextMeeting = meeting;
-          }
-        }
-      }
+      final upcomingMeetings = <DailyMeeting>[
+        ...pendingMeetings.items,
+        ...confirmedMeetings.items,
+      ]..sort((a, b) => a.meetingDate.compareTo(b.meetingDate));
+
+      DailyMeeting? nextMeeting =
+          upcomingMeetings.isEmpty ? null : upcomingMeetings.first;
 
       if (!mounted) return;
       setState(() {
         _activeWedding = activeWedding;
         _nextMeeting = nextMeeting;
+        _recommendations = recommendations;
         _isLoading = false;
       });
     } catch (e) {
@@ -106,6 +131,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 16),
                     ],
+                    _buildRecommendationsSection(),
+                    const SizedBox(height: 28),
                     _buildUpcomingSection(),
                     const SizedBox(height: 28),
                     Text(
@@ -174,6 +201,99 @@ class _HomeScreenState extends State<HomeScreen> {
           textAlign: TextAlign.center,
         ),
       ],
+    );
+  }
+
+  Widget _buildRecommendationsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Preporučeno za vas',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.pushNamed(context, AppRoutes.interests),
+              child: const Text('Interesi'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_recommendations.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.accentColor.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              'Postavite interese da dobijete personalizovane pakete.',
+              style: TextStyle(color: Colors.grey[700]),
+              textAlign: TextAlign.center,
+            ),
+          )
+        else
+          ..._recommendations.map(_buildRecommendationCard),
+      ],
+    );
+  }
+
+  Widget _buildRecommendationCard(Recommendation item) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 1,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.pushNamed(
+            context,
+            AppRoutes.packageDetails,
+            arguments: item.ponudaId,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.naziv,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      '${item.cijena} KM',
+                      style: const TextStyle(
+                        color: AppColors.primaryColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  item.razlog,
+                  style: TextStyle(color: Colors.grey[700], height: 1.35),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 

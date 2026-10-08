@@ -26,6 +26,7 @@ public static class EnvBootstrap
         Map("JwtToken__Issuer", "JWT_ISSUER");
         Map("JwtToken__SecretKey", "JWT_SECRET_KEY");
         Map("JwtToken__DurationInMinutes", "JWT_DURATION_MINUTES");
+        Map("Cors__AllowedOrigins", "CORS_ALLOWED_ORIGINS");
 
         Map("RabbitMQ__Host", "RABBITMQ_HOST");
         Map("RabbitMQ__Username", "RABBITMQ_USERNAME");

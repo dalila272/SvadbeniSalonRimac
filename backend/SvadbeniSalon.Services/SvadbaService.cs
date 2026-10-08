@@ -56,18 +56,22 @@ public class SvadbaService
         var ids = page.Items.Select(i => i.Id).ToList();
         if (ids.Count > 0)
         {
-            var sums = await _dbContext.Rate
+            var stats = await _dbContext.Rate
                 .Where(r => ids.Contains(r.SvadbaId))
                 .GroupBy(r => r.SvadbaId)
-                .Select(g => new { SvadbaId = g.Key, Sum = g.Sum(x => x.Iznos) })
-                .ToDictionaryAsync(x => x.SvadbaId, x => x.Sum);
+                .Select(g => new { SvadbaId = g.Key, Sum = g.Sum(x => x.Iznos), Count = g.Count() })
+                .ToDictionaryAsync(x => x.SvadbaId, x => x);
 
             foreach (var item in page.Items)
             {
-                var uplaceno = sums.GetValueOrDefault(item.Id);
-                item.UplaceniIznos = uplaceno;
-                item.PreostaliIznos = Math.Max(0, item.CijenaPonude - uplaceno);
-                item.IsFullyPaid = item.CijenaPonude > 0 && uplaceno >= item.CijenaPonude;
+                if (stats.TryGetValue(item.Id, out var s))
+                {
+                    item.UplaceniIznos = s.Sum;
+                    item.BrojEvidentiranihUplata = s.Count;
+                }
+
+                item.PreostaliIznos = Math.Max(0, item.CijenaPonude - item.UplaceniIznos);
+                item.IsFullyPaid = item.CijenaPonude > 0 && item.UplaceniIznos >= item.CijenaPonude;
             }
         }
 
@@ -147,12 +151,16 @@ public class SvadbaService
             throw new FluentValidation.ValidationException(errors);
         }
 
-        await ValidateBusinessRulesAsync(request.PonudaId, request.DatumSvadbe, targetUserId, null);
+        await ValidateBusinessRulesAsync(
+            request.PonudaId, request.DatumSvadbe, request.Vrijeme, targetUserId, null);
+
+        var dogovorenaCijena = await ResolveOfferPriceAsync(request.PonudaId);
 
         var entity = new Svadba
         {
             UserId = targetUserId,
             PonudaId = request.PonudaId,
+            DogovorenaCijena = dogovorenaCijena,
             DatumSvadbe = request.DatumSvadbe.Date,
             Vrijeme = request.Vrijeme,
             BrojGostiju = request.BrojGostiju,
@@ -219,7 +227,20 @@ public class SvadbaService
             throw new ClientException("Rezervaciju možete mijenjati samo dok je na čekanju.");
         }
 
-        await ValidateBusinessRulesAsync(request.PonudaId, request.DatumSvadbe, entity.UserId, id);
+        await ValidateBusinessRulesAsync(
+            request.PonudaId, request.DatumSvadbe, request.Vrijeme, entity.UserId, id);
+
+        var existingPayments = await _dbContext.Rate.CountAsync(r => r.SvadbaId == id);
+        if (request.BrojRata < existingPayments)
+        {
+            throw new ClientException(
+                $"Broj rata ne može biti manji od već evidentiranih uplata ({existingPayments}).");
+        }
+
+        if (entity.PonudaId != request.PonudaId)
+        {
+            entity.DogovorenaCijena = await ResolveOfferPriceAsync(request.PonudaId);
+        }
 
         entity.PonudaId = request.PonudaId;
         entity.DatumSvadbe = request.DatumSvadbe.Date;
@@ -301,14 +322,12 @@ public class SvadbaService
         }
 
         var paid = entity.Rate.Sum(r => r.Iznos);
-        if (request.Status == TerminStatus.Cancelled
-            && entity.Status == TerminStatus.Confirmed
-            && paid > 0)
+        if (request.Status == TerminStatus.Cancelled && paid > 0)
         {
             if (!isStaff)
             {
                 throw new ClientException(
-                    "Potvrđenu rezervaciju s uplatama može otkazati samo zaposlenik, uz evidentirani povrat.");
+                    "Rezervaciju s uplatama može otkazati samo zaposlenik, uz evidentirani povrat.");
             }
 
             if (razlog == null
@@ -320,6 +339,11 @@ public class SvadbaService
             }
         }
 
+        if (request.Status == TerminStatus.Completed)
+        {
+            EnsureCanComplete(entity, paid);
+        }
+
         entity.Status = request.Status;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.StatusChangedByUserId = actorId;
@@ -328,13 +352,16 @@ public class SvadbaService
 
         await _dbContext.SaveChangesAsync();
 
-        var mapped = await MapSvadbaAsync(await LoadEntityAsync(id) ?? entity);
+        var loaded = await LoadEntityAsync(id) ?? entity;
+        var mapped = await MapSvadbaAsync(loaded);
+        var customerEmail = loaded.User?.Email?.Trim();
 
         NotificationMessage? notification = request.Status switch
         {
             TerminStatus.Confirmed => new NotificationMessage
             {
                 UserId = mapped.UserId,
+                RecipientEmail = customerEmail,
                 Kind = "SvadbaStatus",
                 Title = "Rezervacija svadbe potvrđena",
                 Body =
@@ -344,6 +371,7 @@ public class SvadbaService
             TerminStatus.Cancelled => new NotificationMessage
             {
                 UserId = mapped.UserId,
+                RecipientEmail = customerEmail,
                 Kind = "SvadbaStatus",
                 Title = "Rezervacija svadbe otkazana",
                 Body =
@@ -354,6 +382,7 @@ public class SvadbaService
             TerminStatus.Completed => new NotificationMessage
             {
                 UserId = mapped.UserId,
+                RecipientEmail = customerEmail,
                 Kind = "SvadbaStatus",
                 Title = "Svadba završena",
                 Body =
@@ -410,8 +439,15 @@ public class SvadbaService
                ?? throw new InvalidOperationException("User id claim is missing.");
     }
 
-    private async Task ValidateBusinessRulesAsync(int ponudaId, DateTime datumSvadbe, int userId, int? excludeId)
+    private async Task ValidateBusinessRulesAsync(
+        int ponudaId,
+        DateTime datumSvadbe,
+        TimeSpan vrijeme,
+        int userId,
+        int? excludeId)
     {
+        EnsureWeddingNotInPast(datumSvadbe, vrijeme);
+
         var ponudaExists = await _dbContext.Ponude.AnyAsync(p => p.Id == ponudaId && p.IsActive);
         if (!ponudaExists)
         {
@@ -439,6 +475,40 @@ public class SvadbaService
         }
     }
 
+    private static void EnsureWeddingNotInPast(DateTime datumSvadbe, TimeSpan vrijeme)
+    {
+        var termin = datumSvadbe.Date.Add(vrijeme);
+        if (termin <= DateTime.Now)
+        {
+            throw new ClientException(
+                "Termin svadbe (datum i vrijeme) ne smije biti u prošlosti.");
+        }
+    }
+
+    private static void EnsureCanComplete(Svadba entity, decimal paid)
+    {
+        var termin = entity.DatumSvadbe.Date.Add(entity.Vrijeme);
+        if (termin > DateTime.Now)
+        {
+            throw new ClientException(
+                "Svadbu možete označiti završenom tek nakon što je termin (datum i vrijeme) prošao.");
+        }
+
+        var obaveza = entity.DogovorenaCijena;
+        if (obaveza <= 0)
+        {
+            throw new ClientException(
+                "Svadba nema dogovorenu cijenu. Provjerite rezervaciju prije završetka.");
+        }
+
+        if (paid < obaveza)
+        {
+            throw new ClientException(
+                $"Svadbu možete završiti tek kada je u potpunosti plaćena. " +
+                $"Uplaćeno: {paid:0.00} KM, obaveza: {obaveza:0.00} KM.");
+        }
+    }
+
     private bool CanAccess(Svadba entity)
     {
         if (_userAccessor.IsSalonStaff())
@@ -449,6 +519,26 @@ public class SvadbaService
         var userId = _userAccessor.GetUserId();
         return userId.HasValue && entity.UserId == userId.Value;
     }
+
+    private async Task<decimal> ResolveOfferPriceAsync(int ponudaId)
+    {
+        var cijena = await _dbContext.Ponude
+            .Where(p => p.Id == ponudaId && p.IsActive)
+            .Select(p => (decimal?)p.Cijena)
+            .FirstOrDefaultAsync();
+
+        if (!cijena.HasValue)
+        {
+            throw new ClientException("Odabrana ponuda ne postoji ili nije aktivna.");
+        }
+
+        return cijena.Value;
+    }
+
+    private static decimal AgreedPrice(Svadba entity)
+        => entity.DogovorenaCijena > 0
+            ? entity.DogovorenaCijena
+            : entity.Ponuda?.Cijena ?? 0;
 
     private async Task<Svadba?> LoadEntityAsync(int id)
     {
@@ -461,14 +551,21 @@ public class SvadbaService
 
     private async Task<SvadbaResponse> MapSvadbaAsync(Svadba entity)
     {
-        var uplaceno = await _dbContext.Rate
+        var uplate = await _dbContext.Rate
             .Where(r => r.SvadbaId == entity.Id)
-            .SumAsync(r => (decimal?)r.Iznos) ?? 0;
-        return MapSvadba(entity, uplaceno);
+            .GroupBy(_ => 1)
+            .Select(g => new { Sum = g.Sum(x => x.Iznos), Count = g.Count() })
+            .FirstOrDefaultAsync();
+
+        return MapSvadba(entity, uplate?.Sum ?? 0, uplate?.Count ?? 0);
     }
 
-    private static SvadbaResponse MapSvadba(Svadba entity, decimal uplaceniIznos = 0)
+    private static SvadbaResponse MapSvadba(
+        Svadba entity,
+        decimal uplaceniIznos = 0,
+        int brojEvidentiranihUplata = 0)
     {
+        var cijena = AgreedPrice(entity);
         return new SvadbaResponse
         {
             Id = entity.Id,
@@ -478,11 +575,11 @@ public class SvadbaService
                 : string.Empty,
             PonudaId = entity.PonudaId,
             PonudaNaziv = entity.Ponuda?.Naziv ?? string.Empty,
-            CijenaPonude = entity.Ponuda?.Cijena ?? 0,
+            CijenaPonude = cijena,
             UplaceniIznos = uplaceniIznos,
-            PreostaliIznos = Math.Max(0, (entity.Ponuda?.Cijena ?? 0) - uplaceniIznos),
-            IsFullyPaid = (entity.Ponuda?.Cijena ?? 0) > 0
-                && uplaceniIznos >= (entity.Ponuda?.Cijena ?? 0),
+            PreostaliIznos = Math.Max(0, cijena - uplaceniIznos),
+            IsFullyPaid = cijena > 0 && uplaceniIznos >= cijena,
+            BrojEvidentiranihUplata = brojEvidentiranihUplata,
             DatumSvadbe = entity.DatumSvadbe,
             Vrijeme = entity.Vrijeme,
             BrojGostiju = entity.BrojGostiju,

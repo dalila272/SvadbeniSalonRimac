@@ -86,7 +86,8 @@ public static class IzvjestajPdfGenerator
                         table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5)
                             .AlignRight().Text(s.BrojGostiju.ToString());
                         table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5)
-                            .AlignRight().Text(FormatAmount(s.Ponuda?.Cijena ?? 0));
+                            .AlignRight().Text(FormatAmount(
+                                s.DogovorenaCijena > 0 ? s.DogovorenaCijena : (s.Ponuda?.Cijena ?? 0)));
                         table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5)
                             .Text(FormatStatus(s.Status));
                     }

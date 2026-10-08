@@ -18,6 +18,21 @@ public partial class SvadbeniSalonDbContext : DbContext
         modelBuilder.Entity<MuzicarZanr>()
             .HasKey(mz => new { mz.MuzicarId, mz.ZanrId });
 
+        modelBuilder.Entity<UserZanr>()
+            .HasKey(uz => new { uz.UserId, uz.ZanrId });
+
+        modelBuilder.Entity<UserZanr>()
+            .HasOne(uz => uz.User)
+            .WithMany(u => u.UserZanrovi)
+            .HasForeignKey(uz => uz.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<UserZanr>()
+            .HasOne(uz => uz.Zanr)
+            .WithMany(z => z.UserZanrovi)
+            .HasForeignKey(uz => uz.ZanrId)
+            .OnDelete(DeleteBehavior.Cascade);
+
         modelBuilder.Entity<Ponuda>()
             .HasOne(p => p.Meni)
             .WithMany(m => m.Ponude)
@@ -80,5 +95,14 @@ public partial class SvadbeniSalonDbContext : DbContext
         modelBuilder.Entity<Racun>()
             .HasIndex(r => r.BrojRacuna)
             .IsUnique();
+
+        modelBuilder.Entity<Notifikacija>()
+            .HasOne(n => n.User)
+            .WithMany()
+            .HasForeignKey(n => n.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Notifikacija>()
+            .HasIndex(n => new { n.UserId, n.IsRead });
     }
 }

@@ -134,13 +134,15 @@ public class DnevniSastanakService
         _dbContext.DnevniSastanci.Add(entity);
         await _dbContext.SaveChangesAsync();
 
-        var mapped = MapEntity(await LoadEntityAsync(entity.Id) ?? entity);
+        var loaded = await LoadEntityAsync(entity.Id) ?? entity;
+        var mapped = MapEntity(loaded);
 
         if (mapped.UserId.HasValue)
         {
             await _notificationPublisher.PublishAsync(new NotificationMessage
             {
                 UserId = mapped.UserId.Value,
+                RecipientEmail = loaded.User?.Email?.Trim(),
                 Kind = "DnevniSastanak",
                 Title = "Dnevni sastanak rezervisan",
                 Body = $"Vaš termin {mapped.DatumSastanka:dd.MM.yyyy HH:mm} je na čekanju. Salon će vam uskoro potvrditi.",
@@ -183,7 +185,23 @@ public class DnevniSastanakService
 
         await _dbContext.SaveChangesAsync();
 
-        return MapEntity(await LoadEntityAsync(id) ?? entity);
+        var loaded = await LoadEntityAsync(id) ?? entity;
+        var mapped = MapEntity(loaded);
+        if (mapped.UserId.HasValue)
+        {
+            await _notificationPublisher.PublishAsync(new NotificationMessage
+            {
+                UserId = mapped.UserId.Value,
+                RecipientEmail = loaded.User?.Email?.Trim(),
+                Kind = "DnevniSastanakUpdated",
+                Title = "Dnevni sastanak ažuriran",
+                Body =
+                    $"Vaš dnevni sastanak je izmijenjen. Novi termin: {mapped.DatumSastanka:dd.MM.yyyy HH:mm}.",
+                CreatedAt = DateTime.UtcNow,
+            });
+        }
+
+        return mapped;
     }
 
     public override async Task DeleteAsync(int id)
@@ -240,7 +258,9 @@ public class DnevniSastanakService
 
         await _dbContext.SaveChangesAsync();
 
-        var mapped = MapEntity(await LoadEntityAsync(id) ?? entity);
+        var loaded = await LoadEntityAsync(id) ?? entity;
+        var mapped = MapEntity(loaded);
+        var customerEmail = loaded.User?.Email?.Trim();
 
         if (mapped.UserId.HasValue)
         {
@@ -249,6 +269,7 @@ public class DnevniSastanakService
                 TerminStatus.Confirmed => new NotificationMessage
                 {
                     UserId = mapped.UserId.Value,
+                    RecipientEmail = customerEmail,
                     Kind = "DnevniSastanakStatus",
                     Title = "Sastanak potvrđen",
                     Body =
@@ -258,6 +279,7 @@ public class DnevniSastanakService
                 TerminStatus.Cancelled => new NotificationMessage
                 {
                     UserId = mapped.UserId.Value,
+                    RecipientEmail = customerEmail,
                     Kind = "DnevniSastanakStatus",
                     Title = "Sastanak otkazan",
                     Body =
@@ -268,6 +290,7 @@ public class DnevniSastanakService
                 TerminStatus.Completed => new NotificationMessage
                 {
                     UserId = mapped.UserId.Value,
+                    RecipientEmail = customerEmail,
                     Kind = "DnevniSastanakStatus",
                     Title = "Sastanak završen",
                     Body =

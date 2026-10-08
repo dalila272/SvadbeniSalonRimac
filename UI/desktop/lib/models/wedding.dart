@@ -8,6 +8,7 @@ class Wedding {
   final String time;
   final int guestCount;
   final int installmentCount;
+  final int recordedPaymentCount;
   final int status;
   final String? note;
   final double offerPrice;
@@ -25,6 +26,7 @@ class Wedding {
     required this.time,
     required this.guestCount,
     required this.installmentCount,
+    this.recordedPaymentCount = 0,
     required this.status,
     this.note,
     this.offerPrice = 0,
@@ -71,6 +73,9 @@ class Wedding {
       installmentCount: json['brojRata'] is int
           ? json['brojRata']
           : int.parse(json['brojRata'].toString()),
+      recordedPaymentCount: json['brojEvidentiranihUplata'] is int
+          ? json['brojEvidentiranihUplata'] as int
+          : int.tryParse(json['brojEvidentiranihUplata']?.toString() ?? '') ?? 0,
       status: json['status'] is int
           ? json['status']
           : int.parse(json['status'].toString()),

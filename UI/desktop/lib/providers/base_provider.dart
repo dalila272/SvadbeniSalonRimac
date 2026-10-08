@@ -3,9 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:svadbeni_salon_desktop/models/search_result.dart';
-import 'package:svadbeni_salon_desktop/providers/auth_provider.dart';
-import 'package:svadbeni_salon_desktop/utils/api_client_exception.dart';
 import 'package:svadbeni_salon_desktop/utils/api_config.dart';
+import 'package:svadbeni_salon_desktop/utils/authenticated_http.dart';
 
 abstract class BaseProvider<T> with ChangeNotifier {
   static String? _baseUrl;
@@ -25,7 +24,7 @@ abstract class BaseProvider<T> with ChangeNotifier {
       url = "$url?$queryString";
     }
 
-    var response = await _send(() => http.get(Uri.parse(url), headers: createHeaders()));
+    var response = await AuthenticatedHttp.get(Uri.parse(url));
     validateResponse(response);
 
     var data = jsonDecode(response.body);
@@ -40,19 +39,16 @@ abstract class BaseProvider<T> with ChangeNotifier {
 
   Future<T> getById(int id) async {
     var url = "$_baseUrl$endpoint/$id";
-    var response = await _send(() => http.get(Uri.parse(url), headers: createHeaders()));
+    var response = await AuthenticatedHttp.get(Uri.parse(url));
     validateResponse(response);
     return fromJson(jsonDecode(response.body));
   }
 
   Future<T> insert(dynamic request) async {
     var url = "$_baseUrl$endpoint";
-    var response = await _send(
-      () => http.post(
-        Uri.parse(url),
-        headers: createHeaders(),
-        body: jsonEncode(request),
-      ),
+    var response = await AuthenticatedHttp.post(
+      Uri.parse(url),
+      body: jsonEncode(request),
     );
     validateResponse(response);
     return fromJson(jsonDecode(response.body));
@@ -60,12 +56,9 @@ abstract class BaseProvider<T> with ChangeNotifier {
 
   Future<T> update(int id, [dynamic request]) async {
     var url = "$_baseUrl$endpoint/$id";
-    var response = await _send(
-      () => http.put(
-        Uri.parse(url),
-        headers: createHeaders(),
-        body: jsonEncode(request),
-      ),
+    var response = await AuthenticatedHttp.put(
+      Uri.parse(url),
+      body: jsonEncode(request),
     );
     validateResponse(response);
     return fromJson(jsonDecode(response.body));
@@ -73,52 +66,25 @@ abstract class BaseProvider<T> with ChangeNotifier {
 
   Future remove(int id) async {
     var url = "$_baseUrl$endpoint/$id";
-    var response = await _send(() => http.delete(Uri.parse(url), headers: createHeaders()));
+    var response = await AuthenticatedHttp.delete(Uri.parse(url));
     validateResponse(response);
   }
 
-  Future<http.Response> _send(Future<http.Response> Function() request) async {
-    var response = await request();
-    if (response.statusCode != 401) return response;
-
-    final refreshed = await AuthProvider.tryRefreshAccessToken();
-    if (!refreshed) return response;
-    return await request();
-  }
+  /// Authenticated request with refresh-on-401 (for custom provider methods).
+  Future<http.Response> sendAuthenticated(
+    Future<http.Response> Function() request,
+  ) =>
+      AuthenticatedHttp.send(request);
 
   T fromJson(data) {
     throw UnimplementedError('Override fromJson in subclass');
   }
 
   void validateResponse(http.Response response) {
-    if (response.statusCode < 299) {
-      return;
-    }
-    if (response.statusCode == 401) {
-      throw ApiClientException(
-        'Sesija je istekla. Prijavite se ponovo.',
-      );
-    }
-
-    final parsed = ApiErrorParser.messageFromBody(response.body);
-    if (response.statusCode >= 500) {
-      throw ApiClientException(
-        parsed ?? 'Serverska greška. Pokušajte kasnije.',
-      );
-    }
-
-    throw ApiClientException(
-      parsed ?? 'Zahtjev nije mogao biti izvršen. Pokušajte ponovo.',
-    );
+    AuthenticatedHttp.validate(response);
   }
 
-  Map<String, String> createHeaders() {
-    final token = AuthProvider.accesstoken ?? '';
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-  }
+  Map<String, String> createHeaders() => AuthenticatedHttp.headers();
 
   String getQueryString(
     Map params, {

@@ -6,12 +6,14 @@ using SvadbeniSalon.Services;
 using SvadbeniSalon.Services.Database;
 using SvadbeniSalon.Services.Validators;
 using SvadbeniSalon.WebAPI.Filters;
+using SvadbeniSalon.WebAPI.Hubs;
 using SvadbeniSalon.WebAPI.Services;
 using SvadbeniSalon.WebAPI.Services.AccessManager;
 using EasyNetQ;
 using FluentValidation;
 using Mapster;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -59,6 +61,8 @@ builder.Services.AddScoped<IArtikalService, ArtikalService>();
 builder.Services.AddScoped<IMuzicarService, MuzicarService>();
 builder.Services.AddScoped<IDekoracijaService, DekoracijaService>();
 builder.Services.AddScoped<IZanrService, ZanrService>();
+builder.Services.AddScoped<IPreporukaService, PreporukaService>();
+builder.Services.AddScoped<INotifikacijaService, NotifikacijaService>();
 builder.Services.AddScoped<ISvadbaService, SvadbaService>();
 builder.Services.AddScoped<IDnevniSastanakService, DnevniSastanakService>();
 builder.Services.AddScoped<IRecenzijaService, RecenzijaService>();
@@ -130,15 +134,48 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero,
         RoleClaimType = "Role",
     };
+    o.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) &&
+                path.StartsWithSegments("/hubs/notifications"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
 builder.Services.AddAuthorization();
+builder.Services.AddSingleton<IUserIdProvider, ClaimUserIdProvider>();
+builder.Services.AddSignalR();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("DefaultCors", policy =>
-        policy.AllowAnyOrigin()
+    {
+        var configured = builder.Configuration["Cors:AllowedOrigins"]
+            ?? Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS");
+        var origins = (configured ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (origins.Length == 0)
+        {
+            origins =
+            [
+                "http://localhost:5121",
+                "http://127.0.0.1:5121",
+            ];
+        }
+
+        policy.WithOrigins(origins)
             .AllowAnyHeader()
-            .AllowAnyMethod());
+            .AllowAnyMethod();
+    });
 });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -211,5 +248,6 @@ app.UseCors("DefaultCors");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

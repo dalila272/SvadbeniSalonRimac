@@ -19,6 +19,9 @@ public class Svadba
     [ForeignKey(nameof(PonudaId))]
     public Ponuda Ponuda { get; set; } = null!;
 
+    [Column(TypeName = "decimal(18,2)")]
+    public decimal DogovorenaCijena { get; set; }
+
     public DateTime DatumSvadbe { get; set; }
 
     public TimeSpan Vrijeme { get; set; }

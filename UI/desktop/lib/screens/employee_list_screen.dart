@@ -128,8 +128,11 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Brisanje'),
-        content: Text('Obrisati zaposlenika "$fullName"?'),
+        title: const Text('Brisanje / deaktivacija'),
+        content: Text(
+          'Ukloniti zaposlenika "$fullName"?\n\n'
+          'Ako postoji historija u sistemu, nalog će biti deaktiviran umjesto trajnog brisanja.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -137,7 +140,7 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Obriši'),
+            child: const Text('Ukloni'),
           ),
         ],
       ),
@@ -149,7 +152,9 @@ class _EmployeeListScreenState extends State<EmployeeListScreen> {
       await _provider.remove(employee.id!);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Zaposlenik je obrisan.')),
+          const SnackBar(
+            content: Text('Zaposlenik je uklonjen ili deaktiviran.'),
+          ),
         );
       }
       _load();

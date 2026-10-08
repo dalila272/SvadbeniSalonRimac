@@ -16,10 +16,12 @@ class WeddingInvoiceProvider extends BaseProvider<WeddingInvoice> {
 
   Future<WeddingInvoice> createForWedding(int weddingId) async {
     final url = '${_base()}Racuni';
-    final response = await http.post(
-      Uri.parse(url),
-      headers: createHeaders(),
-      body: jsonEncode({'svadbaId': weddingId}),
+    final response = await sendAuthenticated(
+      () => http.post(
+        Uri.parse(url),
+        headers: createHeaders(),
+        body: jsonEncode({'svadbaId': weddingId}),
+      ),
     );
     validateResponse(response);
     return fromJson(jsonDecode(response.body));
@@ -27,9 +29,8 @@ class WeddingInvoiceProvider extends BaseProvider<WeddingInvoice> {
 
   Future<Uint8List> downloadPdf(int invoiceId) async {
     final url = '${_base()}Racuni/$invoiceId/pdf';
-    final response = await http.get(
-      Uri.parse(url),
-      headers: createHeaders(),
+    final response = await sendAuthenticated(
+      () => http.get(Uri.parse(url), headers: createHeaders()),
     );
     validateResponse(response);
     return response.bodyBytes;

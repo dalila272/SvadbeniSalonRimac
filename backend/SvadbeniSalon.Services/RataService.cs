@@ -105,23 +105,37 @@ public class RataService : IRataService
             throw new ClientException("Svadba nije pronađena.");
         }
 
-        if (svadba.Status is TerminStatus.Cancelled or TerminStatus.Completed)
+        if (svadba.Status != TerminStatus.Confirmed)
         {
             throw new ClientException(
-                "Uplata nije moguća za otkazanu ili završenu rezervaciju.");
+                svadba.Status == TerminStatus.Pending
+                    ? "Uplata je moguća tek nakon što je rezervacija potvrđena."
+                    : "Uplata nije moguća za otkazanu ili završenu rezervaciju.");
+        }
+
+        var brojUplata = await _dbContext.Rate
+            .CountAsync(r => r.SvadbaId == request.SvadbaId);
+
+        if (brojUplata >= svadba.BrojRata)
+        {
+            throw new ClientException(
+                $"Dostignut je dogovoreni broj rata ({svadba.BrojRata}). " +
+                "Nova uplata nije dozvoljena.");
         }
 
         var uplaceno = await _dbContext.Rate
             .Where(r => r.SvadbaId == request.SvadbaId)
             .SumAsync(r => (decimal?)r.Iznos) ?? 0;
 
-        if (svadba.Ponuda == null)
+        if (svadba.Ponuda == null && svadba.DogovorenaCijena <= 0)
         {
             throw new ClientException("Svadba nema povezanu ponudu.");
         }
 
-        var katalogCijena = svadba.Ponuda.Cijena;
-        var preostalo = katalogCijena - uplaceno;
+        var dogovorenaCijena = svadba.DogovorenaCijena > 0
+            ? svadba.DogovorenaCijena
+            : svadba.Ponuda!.Cijena;
+        var preostalo = dogovorenaCijena - uplaceno;
 
         if (preostalo <= 0)
         {
@@ -133,6 +147,14 @@ public class RataService : IRataService
         {
             throw new ClientException(
                 $"Uplata premašuje preostali iznos. Preostalo: {preostalo:0.00} KM.");
+        }
+
+        var isLastInstallment = brojUplata + 1 >= svadba.BrojRata;
+        if (isLastInstallment && request.Iznos < preostalo)
+        {
+            throw new ClientException(
+                $"Ovo je posljednja rata ({svadba.BrojRata}/{svadba.BrojRata}) — " +
+                $"iznos mora zatvoriti preostali dug od {preostalo:0.00} KM.");
         }
 
         var entity = new Rata

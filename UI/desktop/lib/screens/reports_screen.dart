@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:open_file/open_file.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:printing/printing.dart';
 import 'package:svadbeni_salon_desktop/layouts/master_screen.dart';
 import 'package:svadbeni_salon_desktop/providers/report_provider.dart';
 import 'package:svadbeni_salon_desktop/utils/api_client_exception.dart';
@@ -30,6 +32,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   bool _loadingWeddings = false;
   bool _loadingPayments = false;
+  bool _printingWeddings = false;
+  bool _printingPayments = false;
 
   @override
   void initState() {
@@ -65,13 +69,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return file;
   }
 
-  Future<void> _downloadWeddingsReport() async {
-    if (_weddingsTo.isBefore(_weddingsFrom)) {
+  Future<void> _printPdf(List<int> bytes, String jobName) async {
+    await Printing.layoutPdf(
+      name: jobName,
+      onLayout: (_) async => Uint8List.fromList(bytes),
+    );
+  }
+
+  bool _validateRange(DateTime from, DateTime to) {
+    if (to.isBefore(from)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Datum do mora biti nakon datuma od.')),
       );
-      return;
+      return false;
     }
+    return true;
+  }
+
+  Future<void> _downloadWeddingsReport() async {
+    if (!_validateRange(_weddingsFrom, _weddingsTo)) return;
 
     setState(() => _loadingWeddings = true);
     try {
@@ -97,13 +113,28 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  Future<void> _downloadPaymentsReport() async {
-    if (_paymentsTo.isBefore(_paymentsFrom)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Datum do mora biti nakon datuma od.')),
+  Future<void> _printWeddingsReport() async {
+    if (!_validateRange(_weddingsFrom, _weddingsTo)) return;
+
+    setState(() => _printingWeddings = true);
+    try {
+      final bytes = await _reportProvider.downloadWeddingsReport(
+        dateFrom: _weddingsFrom,
+        dateTo: _weddingsTo,
+        status: _weddingStatus,
       );
-      return;
+      await _printPdf(bytes, 'Pregled svadbi');
+    } on ApiClientException catch (e) {
+      if (mounted) alertBox(context, 'Greška', e.message);
+    } catch (e) {
+      if (mounted) alertBox(context, 'Greška', e.toString());
+    } finally {
+      if (mounted) setState(() => _printingWeddings = false);
     }
+  }
+
+  Future<void> _downloadPaymentsReport() async {
+    if (!_validateRange(_paymentsFrom, _paymentsTo)) return;
 
     setState(() => _loadingPayments = true);
     try {
@@ -125,6 +156,25 @@ class _ReportsScreenState extends State<ReportsScreen> {
       if (mounted) alertBox(context, 'Greška', e.toString());
     } finally {
       if (mounted) setState(() => _loadingPayments = false);
+    }
+  }
+
+  Future<void> _printPaymentsReport() async {
+    if (!_validateRange(_paymentsFrom, _paymentsTo)) return;
+
+    setState(() => _printingPayments = true);
+    try {
+      final bytes = await _reportProvider.downloadPaymentsReport(
+        dateFrom: _paymentsFrom,
+        dateTo: _paymentsTo,
+      );
+      await _printPdf(bytes, 'Pregled uplata');
+    } on ApiClientException catch (e) {
+      if (mounted) alertBox(context, 'Greška', e.message);
+    } catch (e) {
+      if (mounted) alertBox(context, 'Greška', e.toString());
+    } finally {
+      if (mounted) setState(() => _printingPayments = false);
     }
   }
 
@@ -159,12 +209,55 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
+  Widget _actionButton({
+    required bool loading,
+    required VoidCallback onPressed,
+    required IconData icon,
+    required String label,
+    bool outlined = false,
+  }) {
+    final Widget iconWidget = loading
+        ? SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: outlined ? _brandColor : Colors.white,
+            ),
+          )
+        : Icon(icon);
+
+    if (outlined) {
+      return OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _brandColor,
+          side: const BorderSide(color: _brandColor),
+        ),
+        onPressed: loading ? null : onPressed,
+        icon: iconWidget,
+        label: Text(label),
+      );
+    }
+
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _brandColor,
+        foregroundColor: Colors.white,
+      ),
+      onPressed: loading ? null : onPressed,
+      icon: iconWidget,
+      label: Text(label),
+    );
+  }
+
   Widget _reportCard({
     required String title,
     required String description,
     required Widget filters,
-    required bool loading,
+    required bool downloading,
+    required bool printing,
     required VoidCallback onDownload,
+    required VoidCallback onPrint,
   }) {
     return Card(
       elevation: 2,
@@ -186,23 +279,24 @@ class _ReportsScreenState extends State<ReportsScreen> {
             const SizedBox(height: 16),
             Align(
               alignment: Alignment.centerRight,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _brandColor,
-                  foregroundColor: Colors.white,
-                ),
-                onPressed: loading ? null : onDownload,
-                icon: loading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.picture_as_pdf),
-                label: const Text('Preuzmi PDF'),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                children: [
+                  _actionButton(
+                    loading: downloading,
+                    onPressed: onDownload,
+                    icon: Icons.download,
+                    label: 'Preuzmi PDF',
+                  ),
+                  _actionButton(
+                    loading: printing,
+                    onPressed: onPrint,
+                    icon: Icons.print,
+                    label: 'Print',
+                    outlined: true,
+                  ),
+                ],
               ),
             ),
           ],
@@ -228,8 +322,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   title: 'Pregled svadbi u periodu',
                   description:
                       'Lista svadbi u odabranom datumu s klijentom, paketom, brojem gostiju i statusom.',
-                  loading: _loadingWeddings,
+                  downloading: _loadingWeddings,
+                  printing: _printingWeddings,
                   onDownload: _downloadWeddingsReport,
+                  onPrint: _printWeddingsReport,
                   filters: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -278,8 +374,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   title: 'Pregled uplata u periodu',
                   description:
                       'Lista svih evidentiranih uplata po svadbama u odabranom periodu s ukupnim iznosom.',
-                  loading: _loadingPayments,
+                  downloading: _loadingPayments,
+                  printing: _printingPayments,
                   onDownload: _downloadPaymentsReport,
+                  onPrint: _printPaymentsReport,
                   filters: Row(
                     children: [
                       _dateTile(

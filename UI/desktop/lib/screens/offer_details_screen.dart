@@ -51,9 +51,21 @@ class _OfferDetailsScreenState extends State<OfferDetailsScreen> {
 
   Future<void> _loadForm() async {
     try {
-      final menusFuture = _menuProvider.get(filter: {});
-      final musiciansFuture = _musicianProvider.get(filter: {});
-      final decorationsFuture = _decorationProvider.get(filter: {});
+      final menusFuture = _menuProvider.get(filter: {
+        'isActive': true,
+        'pageSize': 100,
+        'includeTotalCount': true,
+      });
+      final musiciansFuture = _musicianProvider.get(filter: {
+        'isActive': true,
+        'pageSize': 100,
+        'includeTotalCount': true,
+      });
+      final decorationsFuture = _decorationProvider.get(filter: {
+        'isActive': true,
+        'pageSize': 100,
+        'includeTotalCount': true,
+      });
       final menus = await menusFuture;
       final musicians = await musiciansFuture;
       final decorations = await decorationsFuture;

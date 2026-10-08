@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:svadbeni_salon_rimac/constants/colors.dart';
+import 'package:svadbeni_salon_rimac/providers/notifications_provider.dart';
 import 'package:svadbeni_salon_rimac/utils/routes.dart';
 import 'package:svadbeni_salon_rimac/widgets/svadbeni_salon_drawer.dart';
 
@@ -16,31 +18,28 @@ class MasterScreenWidget extends StatefulWidget {
 }
 
 class _MasterScreenWidget extends State<MasterScreenWidget> {
-  int currentIndex = 0;
-
-  void _onItemTapped(int index) {
-    setState(() {
-      currentIndex = index;
-    });
-    if (currentIndex == 0) {
-      Navigator.pushNamed(context, AppRoutes.packages);
-    } else if (currentIndex == 1) {
-      Navigator.pushNamed(context, AppRoutes.dailyMeetings);
-    } else if (currentIndex == 2) {
-      Navigator.pushNamed(context, AppRoutes.wedding);
-    } else if (currentIndex == 3) {
-      Navigator.pushNamed(context, AppRoutes.review);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final unread = context.watch<NotificationsProvider>().unreadCount;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Svadbeni salon'),
+        title: Text(widget.title ?? 'Svadbeni salon'),
         backgroundColor: AppColors.primaryColor,
         foregroundColor: Colors.white,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            tooltip: 'Notifikacije',
+            onPressed: () =>
+                Navigator.pushNamed(context, AppRoutes.notifications),
+            icon: Badge(
+              isLabelVisible: unread > 0,
+              label: Text(unread > 99 ? '99+' : '$unread'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+          ),
+        ],
       ),
       drawer: const SvadbeniSalonDrawer(),
       body: SafeArea(

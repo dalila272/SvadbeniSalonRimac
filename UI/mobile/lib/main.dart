@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:svadbeni_salon_rimac/constants/theme.dart';
 import 'package:svadbeni_salon_rimac/providers/auth_provider.dart';
+import 'package:svadbeni_salon_rimac/providers/notifications_provider.dart';
 import 'package:svadbeni_salon_rimac/utils/routes.dart';
 
 void main() {
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => AuthProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => NotificationsProvider()),
+      ],
       child: const MyApp(),
     ),
   );

@@ -24,11 +24,13 @@ namespace SvadbeniSalon.Services.Database
         public DbSet<MuzicarPonuda> MuzicarPonuda { get; set; }
         public DbSet<DekoracijaPonuda> DekoracijaPonuda { get; set; }
         public DbSet<MuzicarZanr> MuzicarZanrovi { get; set; }
+        public DbSet<UserZanr> UserZanrovi { get; set; }
         public DbSet<Svadba> Svadbe { get; set; }
         public DbSet<DnevniSastanak> DnevniSastanci { get; set; }
         public DbSet<Recenzija> Recenzije { get; set; }
         public DbSet<Rata> Rate { get; set; }
         public DbSet<Racun> Racuni { get; set; }
+        public DbSet<Notifikacija> Notifikacije { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -5,6 +5,7 @@ import 'package:svadbeni_salon_rimac/models/daily_meeting.dart';
 import 'package:svadbeni_salon_rimac/providers/daily_meeting_provider.dart';
 import 'package:svadbeni_salon_rimac/utils/daily_meeting_slots.dart';
 import 'package:svadbeni_salon_rimac/utils/master_screen.dart';
+import 'package:svadbeni_salon_rimac/widgets/availability_calendar.dart';
 
 class DailyMeetingScreen extends StatefulWidget {
   const DailyMeetingScreen({super.key});
@@ -192,39 +193,11 @@ class _DailyMeetingScreenState extends State<DailyMeetingScreen> {
   Future<void> _editMeeting(DailyMeeting meeting) async {
     if (!meeting.canEdit) return;
 
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: meeting.meetingDate,
-      firstDate: DateTime.now(),
-      lastDate: DateTime(DateTime.now().year + 1, 12, 31),
+    final updated = await _pickMeetingSlot(
+      initial: meeting.meetingDate,
+      excludeSlot: meeting.meetingDate,
     );
-
-    if (picked == null) return;
-
-    if (!mounted) return;
-    final time = await _selectTimeWithinRange(context);
-    if (time == null) return;
-
-    final updated = DateTime(
-      picked.year,
-      picked.month,
-      picked.day,
-      time.hour,
-      time.minute,
-    );
-
-    if (_isSlotTaken(updated, excludeSlot: meeting.meetingDate)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Odabrani termin se preklapa s postojećim sastankom.',
-            ),
-          ),
-        );
-      }
-      return;
-    }
+    if (updated == null || !mounted) return;
 
     setState(() => _isSaving = true);
     try {
@@ -244,59 +217,25 @@ class _DailyMeetingScreenState extends State<DailyMeetingScreen> {
   }
 
   Future<void> _selectNewMeetingDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(DateTime.now().year + 1, 12, 31),
-    );
-
-    if (picked != null) {
-      if (!mounted) return;
-      final time = await _selectTimeWithinRange(context);
-      if (time != null) {
-        setState(() {
-          _newMeetingDate = DateTime(
-            picked.year,
-            picked.month,
-            picked.day,
-            time.hour,
-            time.minute,
-          );
-        });
-      }
-    }
+    final picked = await _pickMeetingSlot(initial: _newMeetingDate);
+    if (picked == null || !mounted) return;
+    setState(() => _newMeetingDate = picked);
   }
 
-  Future<TimeOfDay?> _selectTimeWithinRange(BuildContext context) async {
-    while (true) {
-      final selectedTime = await showTimePicker(
-        context: context,
-        initialTime: const TimeOfDay(hour: 8, minute: 0),
-      );
-
-      if (selectedTime == null) return null;
-
-      if (DailyMeetingSlots.isValidStart(DateTime(
-        2000,
-        1,
-        1,
-        selectedTime.hour,
-        selectedTime.minute,
-      ))) {
-        return selectedTime;
-      }
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Termin mora biti na puni sat ili pola sata.',
-            ),
-          ),
-        );
-      }
-    }
+  Future<DateTime?> _pickMeetingSlot({
+    DateTime? initial,
+    DateTime? excludeSlot,
+  }) {
+    return showModalBottomSheet<DateTime>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (ctx) => _MeetingSlotPickerSheet(
+        busySlots: _busySlots,
+        initial: initial,
+        excludeSlot: excludeSlot,
+      ),
+    );
   }
 
   Color _statusColor(int status) {
@@ -492,3 +431,165 @@ class _DailyMeetingScreenState extends State<DailyMeetingScreen> {
     );
   }
 }
+
+class _MeetingSlotPickerSheet extends StatefulWidget {
+  final List<DateTime> busySlots;
+  final DateTime? initial;
+  final DateTime? excludeSlot;
+
+  const _MeetingSlotPickerSheet({
+    required this.busySlots,
+    this.initial,
+    this.excludeSlot,
+  });
+
+  @override
+  State<_MeetingSlotPickerSheet> createState() =>
+      _MeetingSlotPickerSheetState();
+}
+
+class _MeetingSlotPickerSheetState extends State<_MeetingSlotPickerSheet> {
+  late DateTime _focusedDay;
+  DateTime? _selectedDay;
+  DateTime? _selectedSlot;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    final initial = widget.initial ?? now;
+    _focusedDay = DateTime(initial.year, initial.month, initial.day);
+    _selectedDay = _focusedDay;
+    if (widget.initial != null &&
+        DailyMeetingSlots.isValidStart(widget.initial!)) {
+      _selectedSlot = widget.initial;
+    }
+  }
+
+  bool _dayAvailable(DateTime day) {
+    return DailyMeetingSlots.dayHasFreeSlot(
+      day,
+      widget.busySlots,
+      excludeSlot: widget.excludeSlot,
+      after: DateTime.now(),
+    );
+  }
+
+  List<DateTime> get _daySlots {
+    if (_selectedDay == null) return const [];
+    return DailyMeetingSlots.slotsForDay(_selectedDay!);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final height = MediaQuery.sizeOf(context).height * 0.85;
+    return SizedBox(
+      height: height,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Odaberite slobodan termin',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            Text(
+              'Zeleni dani i termini su dostupni.',
+              style: TextStyle(color: Colors.grey[700], fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            AvailabilityCalendar(
+              focusedDay: _focusedDay,
+              selectedDay: _selectedDay,
+              firstDay: DateTime.now(),
+              lastDay: DateTime(DateTime.now().year + 1, 12, 31),
+              isDayAvailable: _dayAvailable,
+              onDaySelected: (day) {
+                setState(() {
+                  _selectedDay = day;
+                  _focusedDay = day;
+                  _selectedSlot = null;
+                });
+              },
+              onPageChanged: (focused) {
+                setState(() => _focusedDay = focused);
+              },
+              freeLabel: 'Ima slobodnih termina',
+              busyLabel: 'Nema slobodnih termina',
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Vrijeme',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _selectedDay == null
+                  ? const Center(child: Text('Odaberite dan'))
+                  : SingleChildScrollView(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _daySlots.map((slot) {
+                          final free = !DailyMeetingSlots.isSlotTaken(
+                                slot,
+                                widget.busySlots,
+                                excludeSlot: widget.excludeSlot,
+                              ) &&
+                              slot.isAfter(DateTime.now());
+                          final selected = _selectedSlot != null &&
+                              _selectedSlot!.year == slot.year &&
+                              _selectedSlot!.month == slot.month &&
+                              _selectedSlot!.day == slot.day &&
+                              _selectedSlot!.hour == slot.hour &&
+                              _selectedSlot!.minute == slot.minute;
+                          return ChoiceChip(
+                            label: Text(
+                              DateFormat('HH:mm').format(slot),
+                              style: TextStyle(
+                                color: selected
+                                    ? Colors.white
+                                    : free
+                                        ? Colors.green.shade900
+                                        : Colors.grey.shade600,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            selected: selected,
+                            selectedColor: AppColors.primaryColor,
+                            backgroundColor: free
+                                ? Colors.green.shade100
+                                : Colors.grey.shade300,
+                            onSelected: free
+                                ? (_) => setState(() => _selectedSlot = slot)
+                                : null,
+                          );
+                        }).toList(),
+                      ),
+                    ),
+            ),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: _selectedSlot == null
+                  ? null
+                  : () => Navigator.pop(context, _selectedSlot),
+              child: const Text('Potvrdi termin'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

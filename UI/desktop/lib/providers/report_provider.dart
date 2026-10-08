@@ -1,21 +1,11 @@
 import 'dart:typed_data';
 
-import 'package:http/http.dart' as http;
-import 'package:svadbeni_salon_desktop/providers/auth_provider.dart';
-import 'package:svadbeni_salon_desktop/utils/api_client_exception.dart';
 import 'package:svadbeni_salon_desktop/utils/api_config.dart';
+import 'package:svadbeni_salon_desktop/utils/authenticated_http.dart';
 
 class ReportProvider {
   String _base() {
     return resolveApiBaseUrl();
-  }
-
-  Map<String, String> _headers() {
-    final token = AuthProvider.accesstoken ?? '';
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
   }
 
   Future<Uint8List> downloadWeddingsReport({
@@ -57,19 +47,11 @@ class ReportProvider {
         .map((e) => '${e.key}=${Uri.encodeComponent(e.value.toString())}')
         .join('&');
     final url = '${_base()}$path?$queryString';
-    final response = await http.get(Uri.parse(url), headers: _headers());
-
-    if (response.statusCode < 299) {
-      return response.bodyBytes;
-    }
-    if (response.statusCode == 401) {
-      throw ApiClientException(
-        'Your session has expired. Please sign in again.',
-      );
-    }
-    final parsed = ApiErrorParser.messageFromBody(response.body);
-    throw ApiClientException(
-      parsed ?? 'Izvještaj nije moguće preuzeti.',
+    final response = await AuthenticatedHttp.get(Uri.parse(url));
+    AuthenticatedHttp.validate(
+      response,
+      fallbackMessage: 'Izvještaj nije moguće preuzeti.',
     );
+    return response.bodyBytes;
   }
 }

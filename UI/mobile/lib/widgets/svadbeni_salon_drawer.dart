@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:svadbeni_salon_rimac/providers/auth_provider.dart';
+import 'package:svadbeni_salon_rimac/providers/notifications_provider.dart';
 import 'package:svadbeni_salon_rimac/utils/routes.dart';
 
 import '../constants/colors.dart';
@@ -84,6 +85,25 @@ class _SvadbeniSalonDrawerState extends State<SvadbeniSalonDrawer> {
                   onTap: () => Navigator.pushNamed(context, AppRoutes.home),
                 ),
                 ListTile(
+                  leading: Badge(
+                    isLabelVisible:
+                        context.watch<NotificationsProvider>().unreadCount > 0,
+                    label: Text(
+                      '${context.watch<NotificationsProvider>().unreadCount}',
+                    ),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      color: AppColors.primaryColor,
+                    ),
+                  ),
+                  title: const Text(
+                    'Notifikacije',
+                    style: TextStyle(color: AppColors.textColor),
+                  ),
+                  onTap: () =>
+                      Navigator.pushNamed(context, AppRoutes.notifications),
+                ),
+                ListTile(
                   leading: const Icon(Icons.card_giftcard, color: AppColors.primaryColor),
                   title: const Text(
                     'Ponude',
@@ -153,6 +173,7 @@ class _SvadbeniSalonDrawerState extends State<SvadbeniSalonDrawer> {
               );
 
               if (confirm == true && context.mounted) {
+                context.read<NotificationsProvider>().stopAutoRefresh();
                 context.read<AuthProvider>().logout();
                 Navigator.pushReplacementNamed(context, AppRoutes.login);
               }

@@ -6,6 +6,7 @@ import 'package:svadbeni_salon_rimac/models/wedding.dart';
 import 'package:svadbeni_salon_rimac/providers/packages_provider.dart';
 import 'package:svadbeni_salon_rimac/providers/wedding_provider.dart';
 import 'package:svadbeni_salon_rimac/utils/master_screen.dart';
+import 'package:svadbeni_salon_rimac/widgets/availability_calendar.dart';
 
 class WeddingScreen extends StatefulWidget {
   const WeddingScreen({super.key});
@@ -24,12 +25,26 @@ class _WeddingScreenState extends State<WeddingScreen> {
   int? _editingWeddingId;
   int? _selectedOfferId;
   DateTime? _selectedDate;
+  DateTime? _ownWeddingDate;
+  DateTime _calendarFocusedDay = DateTime.now();
+  final Set<String> _occupiedDateKeys = {};
   int _expectedGuests = 0;
   TimeOfDay _selectedTime = const TimeOfDay(hour: 18, minute: 0);
   int _installments = 1;
   bool _isLoading = true;
   bool _isSaving = false;
   String _errorMessage = '';
+
+  String _dateKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  bool _isDateAvailable(DateTime day) {
+    final key = _dateKey(day);
+    if (_ownWeddingDate != null && _dateKey(_ownWeddingDate!) == key) {
+      return true;
+    }
+    return !_occupiedDateKeys.contains(key);
+  }
 
   @override
   void initState() {
@@ -44,21 +59,40 @@ class _WeddingScreenState extends State<WeddingScreen> {
     });
 
     try {
-      final packagesResult = await _packagesProvider.get();
-      final weddingsResult = await _weddingProvider.get();
+      final packagesResult = await _packagesProvider.get(filter: {
+        'pageSize': 100,
+        'includeTotalCount': true,
+        'isActive': true,
+      });
+      final pendingFuture = _weddingProvider.get(filter: {
+        'status': 0,
+        'pageSize': 1,
+      });
+      final confirmedFuture = _weddingProvider.get(filter: {
+        'status': 1,
+        'pageSize': 1,
+      });
+      final occupiedFuture = _weddingProvider.getOccupiedDates();
+
+      final pending = await pendingFuture;
+      final confirmed = await confirmedFuture;
+      final occupied = await occupiedFuture;
 
       Wedding? active;
-      for (final wedding in weddingsResult.items) {
-        if (wedding.isActive) {
-          active = wedding;
-          break;
-        }
+      if (pending.items.isNotEmpty) {
+        active = pending.items.first;
+      } else if (confirmed.items.isNotEmpty) {
+        active = confirmed.items.first;
       }
 
       setState(() {
         _packages = packagesResult.items;
         _existingWedding = active;
         _editingWeddingId = null;
+        _ownWeddingDate = null;
+        _occupiedDateKeys
+          ..clear()
+          ..addAll(occupied.map(_dateKey));
         _isLoading = false;
       });
     } catch (e) {
@@ -87,6 +121,11 @@ class _WeddingScreenState extends State<WeddingScreen> {
 
     if (_selectedOfferId == null || _selectedDate == null) {
       setState(() => _errorMessage = 'Odaberite paket i datum svadbe.');
+      return;
+    }
+
+    if (!_isDateAvailable(_selectedDate!)) {
+      setState(() => _errorMessage = 'Odabrani datum je zauzet. Odaberite slobodan (zeleni) dan.');
       return;
     }
 
@@ -206,18 +245,6 @@ class _WeddingScreenState extends State<WeddingScreen> {
     }
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate ?? DateTime.now().add(const Duration(days: 30)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(DateTime.now().year + 2),
-    );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return MasterScreenWidget(
@@ -276,15 +303,31 @@ class _WeddingScreenState extends State<WeddingScreen> {
               color: Color.fromRGBO(135, 82, 82, 0.8),
             ),
           ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              _selectedDate == null
-                  ? 'Odaberite datum'
-                  : DateFormat('dd.MM.yyyy.').format(_selectedDate!),
-            ),
-            trailing: const Icon(Icons.calendar_today),
-            onTap: _pickDate,
+          const SizedBox(height: 4),
+          Text(
+            _selectedDate == null
+                ? 'Zeleni dani su slobodni. Zauzete datume nije moguće odabrati.'
+                : 'Odabrano: ${DateFormat('dd.MM.yyyy.').format(_selectedDate!)}',
+            style: TextStyle(color: Colors.grey[700], fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          AvailabilityCalendar(
+            focusedDay: _calendarFocusedDay,
+            selectedDay: _selectedDate,
+            firstDay: DateTime.now(),
+            lastDay: DateTime(DateTime.now().year + 2, 12, 31),
+            isDayAvailable: _isDateAvailable,
+            onDaySelected: (day) {
+              setState(() {
+                _selectedDate = day;
+                _calendarFocusedDay = day;
+              });
+            },
+            onPageChanged: (focused) {
+              setState(() => _calendarFocusedDay = focused);
+            },
+            freeLabel: 'Slobodan datum',
+            busyLabel: 'Zauzet datum',
           ),
           const SizedBox(height: 16),
           const Text(
@@ -447,6 +490,12 @@ class _WeddingScreenState extends State<WeddingScreen> {
                     setState(() {
                       _selectedOfferId = wedding.offerId;
                       _selectedDate = wedding.weddingDate;
+                      _ownWeddingDate = DateTime(
+                        wedding.weddingDate.year,
+                        wedding.weddingDate.month,
+                        wedding.weddingDate.day,
+                      );
+                      _calendarFocusedDay = _ownWeddingDate!;
                       _expectedGuests = wedding.guestCount;
                       _selectedTime = time;
                       _installments = wedding.installmentCount;

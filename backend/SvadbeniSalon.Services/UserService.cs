@@ -195,6 +195,58 @@ namespace SvadbeniSalon.Services
                 throw new NotFoundException($"User with id {id} not found.");
             }
 
+            var currentUserId = _userAccessor.GetUserId();
+            if (currentUserId == id)
+            {
+                throw new ClientException("Ne možete obrisati vlastiti nalog.");
+            }
+
+            var hasHistory =
+                await _dbContext.Svadbe.AnyAsync(s => s.UserId == id)
+                || await _dbContext.DnevniSastanci.AnyAsync(s => s.UserId == id)
+                || await _dbContext.Recenzije.AnyAsync(r => r.UserId == id)
+                || await _dbContext.Svadbe.AnyAsync(s => s.StatusChangedByUserId == id)
+                || await _dbContext.DnevniSastanci.AnyAsync(s => s.StatusChangedByUserId == id)
+                || await _dbContext.Racuni.AnyAsync(r => r.KreiraoUserId == id);
+
+            if (hasHistory)
+            {
+                if (!entity.IsActive)
+                {
+                    throw new ClientException(
+                        "Korisnik već ima historiju i već je deaktiviran. Trajno brisanje nije moguće.");
+                }
+
+                entity.IsActive = false;
+                var refreshTokens = await _dbContext.RefreshTokens
+                    .Where(r => r.UserId == id)
+                    .ToListAsync();
+                _dbContext.RefreshTokens.RemoveRange(refreshTokens);
+                _dbContext.Users.Update(entity);
+                await _dbContext.SaveChangesAsync();
+                return;
+            }
+
+            var tokens = await _dbContext.RefreshTokens
+                .Where(r => r.UserId == id)
+                .ToListAsync();
+            _dbContext.RefreshTokens.RemoveRange(tokens);
+
+            var resetTokens = await _dbContext.PasswordResetTokens
+                .Where(t => t.UserId == id)
+                .ToListAsync();
+            _dbContext.PasswordResetTokens.RemoveRange(resetTokens);
+
+            var interests = await _dbContext.UserZanrovi
+                .Where(uz => uz.UserId == id)
+                .ToListAsync();
+            _dbContext.UserZanrovi.RemoveRange(interests);
+
+            var notifications = await _dbContext.Notifikacije
+                .Where(n => n.UserId == id)
+                .ToListAsync();
+            _dbContext.Notifikacije.RemoveRange(notifications);
+
             _dbContext.UserRoles.RemoveRange(entity.UserRoles);
             _dbContext.Users.Remove(entity);
             await _dbContext.SaveChangesAsync();
@@ -296,6 +348,11 @@ namespace SvadbeniSalon.Services
 
             user.PasswordSalt = _cryptoService.GenerateSlat();
             user.PasswordHash = _cryptoService.GenerateHash(request.NewPassword, user.PasswordSalt);
+
+            var refreshTokens = await _dbContext.RefreshTokens
+                .Where(r => r.UserId == user.Id)
+                .ToListAsync();
+            _dbContext.RefreshTokens.RemoveRange(refreshTokens);
 
             _dbContext.Users.Update(user);
             await _dbContext.SaveChangesAsync();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:svadbeni_salon_rimac/constants/colors.dart';
 import 'package:svadbeni_salon_rimac/providers/auth_provider.dart';
+import 'package:svadbeni_salon_rimac/providers/notifications_provider.dart';
 import 'package:svadbeni_salon_rimac/utils/input_validators.dart';
 import 'package:svadbeni_salon_rimac/utils/routes.dart';
 
@@ -65,10 +66,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         return;
       }
 
+      await context.read<NotificationsProvider>().startAutoRefresh();
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registracija uspješna. Dobrodošli!')),
+        const SnackBar(content: Text('Registracija uspješna. Odaberite interese.')),
       );
-      Navigator.of(context).pushReplacementNamed(AppRoutes.home);
+      Navigator.of(context).pushReplacementNamed(
+        AppRoutes.interests,
+        arguments: true,
+      );
     } on Exception catch (e) {
       if (mounted) {
         setState(() {

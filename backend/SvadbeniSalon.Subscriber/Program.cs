@@ -31,7 +31,15 @@ await host.RunAsync();
 
 public class NotificationWorker : BackgroundService
 {
-    private static readonly TimeSpan[] RetryDelays =
+    private static readonly TimeSpan[] ConnectionRetryDelays =
+    [
+        TimeSpan.FromSeconds(1),
+        TimeSpan.FromSeconds(2),
+        TimeSpan.FromSeconds(4),
+        TimeSpan.FromSeconds(8),
+    ];
+
+    private static readonly TimeSpan[] SmtpRetryDelays =
     [
         TimeSpan.FromSeconds(1),
         TimeSpan.FromSeconds(2),
@@ -80,7 +88,7 @@ public class NotificationWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                var delay = RetryDelays[Math.Min(attempt, RetryDelays.Length - 1)];
+                var delay = ConnectionRetryDelays[Math.Min(attempt, ConnectionRetryDelays.Length - 1)];
                 attempt++;
                 _logger.LogError(
                     ex,
@@ -105,24 +113,28 @@ public class NotificationWorker : BackgroundService
     private async Task HandleMessageAsync(NotificationMessage message)
     {
         _logger.LogInformation(
-            "Received notification Kind={Kind} UserId={UserId} Recipient={Recipient}",
+            "Received notification Kind={Kind} Critical={Critical} UserId={UserId} Recipient={Recipient}",
             message.Kind,
+            message.IsCritical,
             message.UserId,
             message.RecipientEmail ?? "(none)");
 
         if (!string.IsNullOrWhiteSpace(message.RecipientEmail))
         {
-            try
-            {
-                await _emailService.SendAsync(
-                    message.RecipientEmail,
-                    message.Title,
-                    message.Body);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to send email to {Recipient}", message.RecipientEmail);
-            }
+            await SendEmailWithRetryAsync(
+                message.RecipientEmail,
+                message.Title,
+                message.Body,
+                message.IsCritical);
+        }
+        else if (message.IsCritical)
+        {
+            _logger.LogError(
+                "Critical notification without RecipientEmail. Kind={Kind} UserId={UserId}",
+                message.Kind,
+                message.UserId);
+            throw new InvalidOperationException(
+                "Critical notification missing RecipientEmail; message will be retried.");
         }
 
         if (!string.IsNullOrWhiteSpace(_smtpOptions.AdminEmail)
@@ -131,15 +143,75 @@ public class NotificationWorker : BackgroundService
         {
             try
             {
-                await _emailService.SendAsync(
+                await SendEmailWithRetryAsync(
                     _smtpOptions.AdminEmail,
                     $"[Admin] {message.Title}",
-                    message.AdminBody);
+                    message.AdminBody,
+                    critical: false);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to send admin email for svadba change");
             }
+        }
+    }
+
+    private async Task SendEmailWithRetryAsync(
+        string to,
+        string subject,
+        string body,
+        bool critical)
+    {
+        Exception? lastError = null;
+
+        for (var attempt = 0; attempt <= SmtpRetryDelays.Length; attempt++)
+        {
+            try
+            {
+                await _emailService.SendAsync(to, subject, body);
+                if (attempt > 0)
+                {
+                    _logger.LogInformation(
+                        "Email sent to {Recipient} after {Attempt} attempts: {Subject}",
+                        to,
+                        attempt + 1,
+                        subject);
+                }
+
+                return;
+            }
+            catch (Exception ex) when (attempt < SmtpRetryDelays.Length)
+            {
+                lastError = ex;
+                var delay = SmtpRetryDelays[attempt];
+                _logger.LogWarning(
+                    ex,
+                    "SMTP send failed to {Recipient} (attempt {Attempt}/{Max}). Retry in {Delay}s. Critical={Critical}",
+                    to,
+                    attempt + 1,
+                    SmtpRetryDelays.Length + 1,
+                    delay.TotalSeconds,
+                    critical);
+                await Task.Delay(delay);
+            }
+            catch (Exception ex)
+            {
+                lastError = ex;
+            }
+        }
+
+        _logger.LogError(
+            lastError,
+            "SMTP send permanently failed to {Recipient}: {Subject}. Critical={Critical}",
+            to,
+            subject,
+            critical);
+
+        if (critical)
+        {
+            // Rethrow so EasyNetQ can requeue / surface failure instead of losing the code.
+            throw lastError
+                  ?? new InvalidOperationException($"Failed to send critical email to {to}.");
         }
     }
 }

@@ -15,7 +15,9 @@ class DailyMeetingProvider extends BaseProvider<DailyMeeting> {
 
   Future<List<DateTime>> getBusySlots() async {
     final url = '${_baseUrl()}DnevniSastanci/zauzeti';
-    final response = await http.get(Uri.parse(url), headers: createHeaders());
+    final response = await sendAuthenticated(
+      () => http.get(Uri.parse(url), headers: createHeaders()),
+    );
     validateResponse(response);
 
     final data = jsonDecode(response.body) as List<dynamic>;
@@ -24,10 +26,12 @@ class DailyMeetingProvider extends BaseProvider<DailyMeeting> {
 
   Future<void> cancel(int id, {required String razlog}) async {
     final url = '${_baseUrl()}DnevniSastanci/$id/status';
-    final response = await http.put(
-      Uri.parse(url),
-      headers: createHeaders(),
-      body: jsonEncode({'status': 2, 'razlog': razlog}),
+    final response = await sendAuthenticated(
+      () => http.put(
+        Uri.parse(url),
+        headers: createHeaders(),
+        body: jsonEncode({'status': 2, 'razlog': razlog}),
+      ),
     );
     validateResponse(response);
   }

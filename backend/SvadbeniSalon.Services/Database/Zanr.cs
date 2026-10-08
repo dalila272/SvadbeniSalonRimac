@@ -16,4 +16,6 @@ public class Zanr
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<MuzicarZanr> MuzicarZanrovi { get; set; } = new List<MuzicarZanr>();
+
+    public ICollection<UserZanr> UserZanrovi { get; set; } = new List<UserZanr>();
 }

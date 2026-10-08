@@ -166,6 +166,41 @@ public class PonudaService
         }
     }
 
+    public override async Task DeleteAsync(int id)
+    {
+        var entity = await _dbContext.Ponude.FindAsync(id);
+        if (entity == null)
+        {
+            throw new NotFoundException($"Ponuda with id {id} not found.");
+        }
+
+        var hasHistory =
+            await _dbContext.Svadbe.AnyAsync(s => s.PonudaId == id)
+            || await _dbContext.Recenzije.AnyAsync(r => r.PonudaId == id);
+
+        if (hasHistory)
+        {
+            if (!entity.IsActive)
+            {
+                throw new ClientException(
+                    "Ponuda ima historiju rezervacija/recenzija i već je deaktivirana. Trajno brisanje nije moguće.");
+            }
+
+            entity.IsActive = false;
+            entity.UpdatedAt = DateTime.UtcNow;
+            await _dbContext.SaveChangesAsync();
+            return;
+        }
+
+        var muzicari = _dbContext.MuzicarPonuda.Where(x => x.PonudaId == id);
+        _dbContext.RemoveRange(muzicari);
+        var dekoracije = _dbContext.DekoracijaPonuda.Where(x => x.PonudaId == id);
+        _dbContext.RemoveRange(dekoracije);
+
+        _dbContext.Ponude.Remove(entity);
+        await _dbContext.SaveChangesAsync();
+    }
+
     private async Task SyncRelationsAsync(int ponudaId, List<int> muzicarIds, List<int> dekoracijaIds)
     {
         var existingMuzicari = _dbContext.Set<MuzicarPonuda>().Where(x => x.PonudaId == ponudaId);

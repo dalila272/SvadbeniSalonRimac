@@ -21,19 +21,22 @@ namespace SvadbeniSalon.WebAPI.Controllers
         private readonly INotificationPublisher _notificationPublisher;
         private readonly IAuthenticatedUserAccessor _userAccessor;
         private readonly IValidator<UserRegisterRequest> _registerValidator;
+        private readonly IPreporukaService _preporukaService;
 
         public AccessController(
             IAccessManager accessManager,
             IUserService userService,
             INotificationPublisher notificationPublisher,
             IAuthenticatedUserAccessor userAccessor,
-            IValidator<UserRegisterRequest> registerValidator)
+            IValidator<UserRegisterRequest> registerValidator,
+            IPreporukaService preporukaService)
         {
             _accessManager = accessManager;
             _userService = userService;
             _notificationPublisher = notificationPublisher;
             _userAccessor = userAccessor;
             _registerValidator = registerValidator;
+            _preporukaService = preporukaService;
         }
 
         [HttpPost("Login")]
@@ -75,6 +78,7 @@ namespace SvadbeniSalon.WebAPI.Controllers
             await _notificationPublisher.PublishAsync(new NotificationMessage
             {
                 UserId = user.Id,
+                RecipientEmail = user.Email,
                 Title = "Dobrodošli u Svadbeni Salon Rimac",
                 Body = $"Registracija uspješna, {user.FirstName}. Možete rezervisati dnevni sastanak i pregledati ponude.",
                 CreatedAt = DateTime.UtcNow,
@@ -160,6 +164,24 @@ namespace SvadbeniSalon.WebAPI.Controllers
 
             var updated = await _userService.UpdateOwnProfileAsync(userId, request);
             return Ok(updated);
+        }
+
+        [HttpGet("Interests")]
+        public async Task<ActionResult<UserInterestsResponse>> GetInterests()
+        {
+            var userId = _userAccessor.GetUserId()
+                         ?? throw new UnauthorizedAccessException("Niste prijavljeni.");
+
+            return Ok(await _preporukaService.GetInterestsAsync(userId));
+        }
+
+        [HttpPut("Interests")]
+        public async Task<ActionResult<UserInterestsResponse>> SetInterests([FromBody] UserInterestsRequest request)
+        {
+            var userId = _userAccessor.GetUserId()
+                         ?? throw new UnauthorizedAccessException("Niste prijavljeni.");
+
+            return Ok(await _preporukaService.SetInterestsAsync(userId, request));
         }
     }
 }

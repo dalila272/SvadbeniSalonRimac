@@ -28,4 +28,6 @@ public class SvadbaResponse
     public decimal PreostaliIznos { get; set; }
 
     public bool IsFullyPaid { get; set; }
+
+    public int BrojEvidentiranihUplata { get; set; }
 }

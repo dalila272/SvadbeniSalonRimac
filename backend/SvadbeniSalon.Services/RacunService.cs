@@ -109,7 +109,7 @@ public class RacunService : IRacunService
             throw new ClientException("Račun se ne može izdati za otkazanu svadbu.");
         }
 
-        if (svadba.Ponuda == null)
+        if (svadba.Ponuda == null && svadba.DogovorenaCijena <= 0)
         {
             throw new ClientException("Svadba nema povezanu ponudu.");
         }
@@ -127,13 +127,16 @@ public class RacunService : IRacunService
         var uplaceno = uplate.Sum(r => r.Iznos);
         var now = DateTime.UtcNow;
         var brojRacuna = await GenerateBrojRacunaAsync(now.Year);
+        var ukupanIznos = svadba.DogovorenaCijena > 0
+            ? svadba.DogovorenaCijena
+            : svadba.Ponuda!.Cijena;
 
         var entity = new Racun
         {
             SvadbaId = request.SvadbaId,
             BrojRacuna = brojRacuna,
             DatumIzdavanja = now,
-            UkupanIznos = svadba.Ponuda.Cijena,
+            UkupanIznos = ukupanIznos,
             UplaceniIznos = uplaceno,
             KreiraoUserId = _userAccessor.GetUserId(),
             CreatedAt = now,

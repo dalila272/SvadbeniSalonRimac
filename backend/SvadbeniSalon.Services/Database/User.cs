@@ -47,5 +47,7 @@ namespace SvadbeniSalon.Services.Database
         public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
         public ICollection<PasswordResetToken> PasswordResetTokens { get; set; } = new List<PasswordResetToken>();
+
+        public ICollection<UserZanr> UserZanrovi { get; set; } = new List<UserZanr>();
     }
 } 

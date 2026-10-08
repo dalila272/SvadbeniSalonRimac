@@ -25,8 +25,9 @@ public class SmtpEmailService : IEmailService
     {
         if (!_options.IsConfigured)
         {
-            _logger.LogWarning("SMTP is not configured; skipping email to {Recipient}", to);
-            return;
+            _logger.LogWarning("SMTP is not configured; cannot send email to {Recipient}", to);
+            throw new InvalidOperationException(
+                "SMTP nije konfigurisan. Email nije poslan.");
         }
 
         if (string.IsNullOrWhiteSpace(to))

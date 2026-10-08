@@ -8,6 +8,7 @@ import 'package:svadbeni_salon_rimac/models/user_profile.dart';
 import 'package:svadbeni_salon_rimac/providers/auth_provider.dart';
 import 'package:svadbeni_salon_rimac/utils/input_validators.dart';
 import 'package:svadbeni_salon_rimac/utils/master_screen.dart';
+import 'package:svadbeni_salon_rimac/utils/routes.dart';
 import 'package:svadbeni_salon_rimac/utils/util.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -247,6 +248,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       validator: InputValidators.phone,
                     ),
                     const SizedBox(height: 8),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.music_note_outlined),
+                      title: const Text('Muzički interesi'),
+                      subtitle: const Text(
+                        'Žanrovi za personalizovane preporuke paketa',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: _isSaving
+                          ? null
+                          : () => Navigator.pushNamed(context, AppRoutes.interests),
+                    ),
                     CheckboxListTile(
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Izmijeni lozinku'),

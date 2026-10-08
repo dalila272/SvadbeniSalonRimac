@@ -1,12 +1,13 @@
-
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-CU25-ubuntu-22.04
     platform: linux/amd64
     container_name: svadbeni-salon-sql
+    env_file:
+      - .env
     environment:
       ACCEPT_EULA: Y
-      SA_PASSWORD: ${SQL_SA_PASSWORD:-qweasd123!}
+      SA_PASSWORD: ${SQL_SA_PASSWORD:?Postavi SQL_SA_PASSWORD u .env}
       MSSQL_PID: Developer
     ports:
       - "${SQL_PORT:-1435}:1433"
@@ -18,6 +19,8 @@ services:
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: svadbeni-salon-rabbitmq
+    env_file:
+      - .env
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
@@ -32,14 +35,17 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: svadbeni-salon-api
+    env_file:
+      - .env
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:5121
-      ConnectionStrings__DefaultConnection: Server=sqlserver;Database=${SQL_DATABASE:-1210386};User Id=sa;Password=${SQL_SA_PASSWORD:-qweasd123!};TrustServerCertificate=True;
+      ConnectionStrings__DefaultConnection: Server=sqlserver;Database=${SQL_DATABASE:-1210386};User Id=sa;Password=${SQL_SA_PASSWORD:?Postavi SQL_SA_PASSWORD u .env};TrustServerCertificate=True;
       JwtToken__Audience: ${JWT_AUDIENCE:-http://svadbeni-salon.local}
       JwtToken__Issuer: ${JWT_ISSUER:-http://svadbeni-salon.local}
-      JwtToken__SecretKey: ${JWT_SECRET_KEY:-svadbeni-salon-rimac-dev-secret-key-32chars}
+      JwtToken__SecretKey: ${JWT_SECRET_KEY:?Postavi JWT_SECRET_KEY u .env}
       JwtToken__DurationInMinutes: ${JWT_DURATION_MINUTES:-30}
+      Cors__AllowedOrigins: ${CORS_ALLOWED_ORIGINS:-http://localhost:5121,http://127.0.0.1:5121}
       RabbitMQ__Host: rabbitmq
       RabbitMQ__Username: ${RABBITMQ_USERNAME:-guest}
       RabbitMQ__Password: ${RABBITMQ_PASSWORD:-guest}
@@ -56,6 +62,8 @@ services:
       context: ./backend
       dockerfile: SvadbeniSalon.Subscriber/Dockerfile
     container_name: svadbeni-salon-worker
+    env_file:
+      - .env
     environment:
       RabbitMQ__Host: rabbitmq
       RabbitMQ__Username: ${RABBITMQ_USERNAME:-guest}

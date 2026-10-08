@@ -194,8 +194,11 @@ class _OfferListScreenState extends State<OfferListScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Brisanje'),
-        content: Text('Obrisati ponudu "${offer.name}"?'),
+        title: const Text('Brisanje / deaktivacija'),
+        content: Text(
+          'Ukloniti ponudu "${offer.name}"?\n\n'
+          'Ako postoje rezervacije ili recenzije, ponuda će biti deaktivirana umjesto trajnog brisanja.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -203,7 +206,7 @@ class _OfferListScreenState extends State<OfferListScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Obriši'),
+            child: const Text('Ukloni'),
           ),
         ],
       ),
@@ -215,7 +218,9 @@ class _OfferListScreenState extends State<OfferListScreen> {
       await _provider.remove(offer.id);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ponuda je obrisana.')),
+          const SnackBar(
+            content: Text('Ponuda je uklonjena ili deaktivirana.'),
+          ),
         );
       }
       _load();

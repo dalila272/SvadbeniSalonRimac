@@ -14,9 +14,8 @@ class MenuProvider extends BaseProvider<Menu> {
 
   Future<MenuDetail> getDetail(int id) async {
     final url = '${BaseProvider.baseUrl}$endpoint/$id';
-    final response = await http.get(
-      Uri.parse(url),
-      headers: createHeaders(),
+    final response = await sendAuthenticated(
+      () => http.get(Uri.parse(url), headers: createHeaders()),
     );
     validateResponse(response);
     return MenuDetail.fromJson(

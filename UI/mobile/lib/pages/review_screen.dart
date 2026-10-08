@@ -43,8 +43,15 @@ class _ReviewScreenState extends State<ReviewScreen> {
     });
 
     try {
-      final reviewsResult = await _reviewProvider.get();
-      final weddingsResult = await _weddingProvider.get();
+      final reviewsResult = await _reviewProvider.get(filter: {
+        'pageSize': 100,
+        'includeTotalCount': true,
+      });
+      final completedWeddings = await _weddingProvider.get(filter: {
+        'status': 3,
+        'pageSize': 100,
+        'includeTotalCount': true,
+      });
 
       Review? latestReview;
       if (reviewsResult.items.isNotEmpty) {
@@ -52,15 +59,12 @@ class _ReviewScreenState extends State<ReviewScreen> {
       }
 
       Wedding? eligible;
-      for (final wedding in weddingsResult.items) {
-        // Samo završena svadba (Completed = 3)
-        if (wedding.status == 3) {
-          final alreadyReviewed = reviewsResult.items
-              .any((review) => review.weddingId == wedding.id);
-          if (!alreadyReviewed) {
-            eligible = wedding;
-            break;
-          }
+      for (final wedding in completedWeddings.items) {
+        final alreadyReviewed = reviewsResult.items
+            .any((review) => review.weddingId == wedding.id);
+        if (!alreadyReviewed) {
+          eligible = wedding;
+          break;
         }
       }
 

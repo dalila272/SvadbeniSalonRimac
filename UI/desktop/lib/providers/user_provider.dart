@@ -19,13 +19,15 @@ class UserProvider extends BaseProvider<User> {
     String confirmNewPassword,
   ) async {
     final uri = Uri.parse('${BaseProvider.baseUrl}$endpoint/$userId/SetPassword');
-    final response = await http.put(
-      uri,
-      headers: createHeaders(),
-      body: jsonEncode({
-        'newPassword': newPassword,
-        'confirmNewPassword': confirmNewPassword,
-      }),
+    final response = await sendAuthenticated(
+      () => http.put(
+        uri,
+        headers: createHeaders(),
+        body: jsonEncode({
+          'newPassword': newPassword,
+          'confirmNewPassword': confirmNewPassword,
+        }),
+      ),
     );
     validateResponse(response);
   }

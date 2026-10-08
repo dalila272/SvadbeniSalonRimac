@@ -15,10 +15,12 @@ class WeddingPaymentProvider extends BaseProvider<WeddingPayment> {
 
   Future<void> addPayment(Map<String, dynamic> request) async {
     final url = '${_base()}Rate';
-    final response = await http.post(
-      Uri.parse(url),
-      headers: createHeaders(),
-      body: jsonEncode(request),
+    final response = await sendAuthenticated(
+      () => http.post(
+        Uri.parse(url),
+        headers: createHeaders(),
+        body: jsonEncode(request),
+      ),
     );
     validateResponse(response);
   }

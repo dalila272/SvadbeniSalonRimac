@@ -11,12 +11,16 @@ public class SvadbaInsertValidator : AbstractValidator<SvadbaInsertRequest>
             .GreaterThan(0).WithMessage("Paket je obavezan.");
 
         RuleFor(x => x.DatumSvadbe)
-            .Must(d => d.Date >= DateTime.UtcNow.Date)
-            .WithMessage("Datum svadbe mora biti u budućnosti.");
+            .Must(d => d.Date >= DateTime.Today)
+            .WithMessage("Datum svadbe mora biti danas ili u budućnosti.");
 
         RuleFor(x => x.Vrijeme)
             .Must(v => v >= TimeSpan.FromHours(14) && v <= TimeSpan.FromHours(21))
             .WithMessage("Vrijeme mora biti između 14:00 i 21:00.");
+
+        RuleFor(x => x)
+            .Must(x => x.DatumSvadbe.Date.Add(x.Vrijeme) > DateTime.Now)
+            .WithMessage("Termin svadbe (datum i vrijeme) ne smije biti u prošlosti.");
 
         RuleFor(x => x.BrojGostiju)
             .GreaterThan(0).WithMessage("Broj gostiju mora biti veći od 0.");
@@ -37,12 +41,16 @@ public class SvadbaUpdateValidator : AbstractValidator<SvadbaUpdateRequest>
             .GreaterThan(0).WithMessage("Paket je obavezan.");
 
         RuleFor(x => x.DatumSvadbe)
-            .Must(d => d.Date >= DateTime.UtcNow.Date)
-            .WithMessage("Datum svadbe mora biti u budućnosti.");
+            .Must(d => d.Date >= DateTime.Today)
+            .WithMessage("Datum svadbe mora biti danas ili u budućnosti.");
 
         RuleFor(x => x.Vrijeme)
             .Must(v => v >= TimeSpan.FromHours(14) && v <= TimeSpan.FromHours(21))
             .WithMessage("Vrijeme mora biti između 14:00 i 21:00.");
+
+        RuleFor(x => x)
+            .Must(x => x.DatumSvadbe.Date.Add(x.Vrijeme) > DateTime.Now)
+            .WithMessage("Termin svadbe (datum i vrijeme) ne smije biti u prošlosti.");
 
         RuleFor(x => x.BrojGostiju)
             .GreaterThan(0).WithMessage("Broj gostiju mora biti veći od 0.");

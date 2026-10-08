@@ -9,4 +9,7 @@ public class NotificationMessage
     public string? Kind { get; set; }
     public string? AdminBody { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    public bool IsCritical =>
+        string.Equals(Kind, "PasswordReset", StringComparison.OrdinalIgnoreCase);
 }
