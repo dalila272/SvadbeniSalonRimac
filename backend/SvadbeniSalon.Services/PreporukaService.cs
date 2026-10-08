@@ -177,6 +177,13 @@ public class PreporukaService : IPreporukaService
                 .Distinct()
                 .ToList();
 
+            // S interesima: samo paketi koji se poklapaju (inače bi popularnost
+            // gurala sve aktivne ponude u listu "preporučeno").
+            if (userZanrIds.Count > 0 && matching.Count == 0)
+            {
+                continue;
+            }
+
             var interestScore = userZanrIds.Count == 0
                 ? 0
                 : (double)matching.Count / userZanrIds.Count;

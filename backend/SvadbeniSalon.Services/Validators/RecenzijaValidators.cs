@@ -11,7 +11,8 @@ public class RecenzijaInsertValidator : AbstractValidator<RecenzijaInsertRequest
             .GreaterThan(0).WithMessage("Paket je obavezan.");
 
         RuleFor(x => x.SvadbaId)
-            .GreaterThan(0).WithMessage("Svadba je obavezna.");
+            .NotNull().WithMessage("Svadba je obavezna.")
+            .GreaterThan(0).WithMessage("Svadba nije validna.");
 
         RuleFor(x => x.Ocjena)
             .InclusiveBetween(1, 5).WithMessage("Ocjena mora biti između 1 i 5.");

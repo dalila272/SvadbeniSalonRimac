@@ -92,7 +92,8 @@ class _PackageDetailsScreenState extends State<PackageDetailsScreen> {
                     (m) => ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text(m.name),
-                      subtitle: m.description.isNotEmpty ? Text(m.description) : null,
+                      subtitle:
+                          m.description.isNotEmpty ? Text(m.description) : null,
                     ),
                   ),
                 ],

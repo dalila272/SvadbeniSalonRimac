@@ -3,7 +3,7 @@ class SalonReview {
   final int userId;
   final String clientName;
   final String offerName;
-  final int weddingId;
+  final int? weddingId;
   final DateTime? weddingDate;
   final int rating;
   final String? comment;
@@ -14,7 +14,7 @@ class SalonReview {
     required this.userId,
     this.clientName = '',
     required this.offerName,
-    required this.weddingId,
+    this.weddingId,
     this.weddingDate,
     required this.rating,
     this.comment,
@@ -32,9 +32,11 @@ class SalonReview {
           : int.parse(json['userId'].toString()),
       clientName: json['korisnikIme']?.toString() ?? '',
       offerName: json['ponudaNaziv']?.toString() ?? '',
-      weddingId: json['svadbaId'] is int
-          ? json['svadbaId']
-          : int.parse(json['svadbaId'].toString()),
+      weddingId: json['svadbaId'] == null
+          ? null
+          : (json['svadbaId'] is int
+              ? json['svadbaId'] as int
+              : int.parse(json['svadbaId'].toString())),
       weddingDate: json['svadbaDatum'] != null
           ? DateTime.parse(json['svadbaDatum'].toString())
           : null,

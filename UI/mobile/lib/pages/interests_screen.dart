@@ -66,14 +66,20 @@ class _InterestsScreenState extends State<InterestsScreen> {
     try {
       await _provider.saveInterests(_selected.toList());
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Interesi su sačuvani.')),
-      );
-      if (widget.fromRegistration) {
-        Navigator.of(context).pushReplacementNamed(AppRoutes.home);
-      } else {
-        Navigator.of(context).pop(true);
-      }
+      final navigator = Navigator.of(context);
+      final messenger = ScaffoldMessenger.of(context);
+      final fromRegistration = widget.fromRegistration;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Interesi su sačuvani.')),
+        );
+        if (fromRegistration) {
+          navigator.pushReplacementNamed(AppRoutes.home);
+        } else {
+          navigator.pop(true);
+        }
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {

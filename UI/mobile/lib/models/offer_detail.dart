@@ -25,18 +25,25 @@ class OfferMusician {
   final int id;
   final String name;
   final String description;
+  final List<int> zanrIds;
 
   OfferMusician({
     required this.id,
     required this.name,
     required this.description,
+    this.zanrIds = const [],
   });
 
   factory OfferMusician.fromJson(Map<String, dynamic> json) {
+    final rawZanrovi = json['zanrIds'] as List<dynamic>? ?? [];
     return OfferMusician(
       id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
       name: json['naziv'] ?? '',
       description: json['opis'] ?? '',
+      zanrIds: rawZanrovi
+          .map((e) => e is int ? e : int.tryParse(e.toString()) ?? 0)
+          .where((id) => id > 0)
+          .toList(),
     );
   }
 }

@@ -66,16 +66,23 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         return;
       }
 
-      await context.read<NotificationsProvider>().startAutoRefresh();
+      context.read<NotificationsProvider>().startAutoRefresh();
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Registracija uspješna. Odaberite interese.')),
-      );
-      Navigator.of(context).pushReplacementNamed(
-        AppRoutes.interests,
-        arguments: true,
-      );
+      final navigator = Navigator.of(context);
+      final messenger = ScaffoldMessenger.of(context);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Registracija uspješna. Odaberite interese.'),
+          ),
+        );
+        navigator.pushReplacementNamed(
+          AppRoutes.interests,
+          arguments: true,
+        );
+      });
     } on Exception catch (e) {
       if (mounted) {
         setState(() {

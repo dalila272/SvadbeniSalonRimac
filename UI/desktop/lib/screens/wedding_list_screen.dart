@@ -162,6 +162,20 @@ class _WeddingListScreenState extends State<WeddingListScreen>
       '${_monthNames[date.month - 1]} ${date.year}';
 
   Future<void> _openCreate({required DateTime date}) async {
+    final now = DateTime.now();
+    final minDate = DateTime(now.year, now.month, now.day)
+        .add(const Duration(days: 3));
+    final day = DateTime(date.year, date.month, date.day);
+    if (day.isBefore(minDate)) {
+      if (mounted) {
+        alertBox(
+          context,
+          'Datum',
+          'Rezervacija mora biti najmanje 3 dana unaprijed.',
+        );
+      }
+      return;
+    }
     try {
       final offers = await context.read<OfferProvider>().get(
             filter: {'isActive': true, 'pageSize': 1},

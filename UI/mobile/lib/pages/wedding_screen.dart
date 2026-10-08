@@ -5,7 +5,9 @@ import 'package:svadbeni_salon_rimac/models/package.dart';
 import 'package:svadbeni_salon_rimac/models/wedding.dart';
 import 'package:svadbeni_salon_rimac/providers/packages_provider.dart';
 import 'package:svadbeni_salon_rimac/providers/wedding_provider.dart';
+import 'package:svadbeni_salon_rimac/utils/api_client_exception.dart';
 import 'package:svadbeni_salon_rimac/utils/master_screen.dart';
+import 'package:svadbeni_salon_rimac/widgets/cancel_reason_dialog.dart';
 import 'package:svadbeni_salon_rimac/widgets/availability_calendar.dart';
 
 class WeddingScreen extends StatefulWidget {
@@ -16,6 +18,8 @@ class WeddingScreen extends StatefulWidget {
 }
 
 class _WeddingScreenState extends State<WeddingScreen> {
+  static const int _minLeadDays = 3;
+
   final _formKey = GlobalKey<FormState>();
   final _packagesProvider = PackagesProvider();
   final _weddingProvider = WeddingProvider();
@@ -26,7 +30,7 @@ class _WeddingScreenState extends State<WeddingScreen> {
   int? _selectedOfferId;
   DateTime? _selectedDate;
   DateTime? _ownWeddingDate;
-  DateTime _calendarFocusedDay = DateTime.now();
+  late DateTime _calendarFocusedDay;
   final Set<String> _occupiedDateKeys = {};
   int _expectedGuests = 0;
   TimeOfDay _selectedTime = const TimeOfDay(hour: 18, minute: 0);
@@ -34,6 +38,32 @@ class _WeddingScreenState extends State<WeddingScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   String _errorMessage = '';
+
+  DateTime get _minWeddingDate {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day)
+        .add(const Duration(days: _minLeadDays));
+  }
+
+  /// Pri izmjeni postojeće rezervacije dozvoli njen datum i ako je unutar lead-timea.
+  DateTime get _calendarFirstDay {
+    final min = _minWeddingDate;
+    if (_ownWeddingDate != null && _ownWeddingDate!.isBefore(min)) {
+      return DateTime(
+        _ownWeddingDate!.year,
+        _ownWeddingDate!.month,
+        _ownWeddingDate!.day,
+      );
+    }
+    return min;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _calendarFocusedDay = _minWeddingDate;
+    _loadData();
+  }
 
   String _dateKey(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
@@ -44,12 +74,6 @@ class _WeddingScreenState extends State<WeddingScreen> {
       return true;
     }
     return !_occupiedDateKeys.contains(key);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
   }
 
   Future<void> _loadData() async {
@@ -115,17 +139,64 @@ class _WeddingScreenState extends State<WeddingScreen> {
     );
   }
 
+  DateTime? _selectedTermin() {
+    if (_selectedDate == null) return null;
+    return DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _selectedTime.hour,
+      _selectedTime.minute,
+    );
+  }
+
+  bool _isTerminInPast() {
+    final termin = _selectedTermin();
+    return termin != null && !termin.isAfter(DateTime.now());
+  }
+
+  bool _isBeforeMinLeadDate() {
+    if (_selectedDate == null) return false;
+    final selected = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+    );
+    return selected.isBefore(_minWeddingDate);
+  }
+
+  void _showError(String message) {
+    setState(() => _errorMessage = message);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+
   Future<void> _saveWedding() async {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
 
     if (_selectedOfferId == null || _selectedDate == null) {
-      setState(() => _errorMessage = 'Odaberite paket i datum svadbe.');
+      _showError('Odaberite paket i datum svadbe.');
       return;
     }
 
     if (!_isDateAvailable(_selectedDate!)) {
-      setState(() => _errorMessage = 'Odabrani datum je zauzet. Odaberite slobodan (zeleni) dan.');
+      _showError('Odabrani datum je zauzet. Odaberite slobodan (zeleni) dan.');
+      return;
+    }
+
+    if (_isBeforeMinLeadDate()) {
+      _showError(
+        'Rezervacija mora biti najmanje $_minLeadDays dana unaprijed.',
+      );
+      return;
+    }
+
+    if (_isTerminInPast()) {
+      _showError(
+        'Termin svadbe (datum i vrijeme) ne smije biti u prošlosti.',
+      );
       return;
     }
 
@@ -159,10 +230,12 @@ class _WeddingScreenState extends State<WeddingScreen> {
           const SnackBar(content: Text('Svadba uspješno sačuvana!')),
         );
       }
+    } on ApiClientException catch (e) {
+      if (mounted) _showError(e.message);
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
+      if (mounted) {
+        _showError(e.toString().replaceFirst('Exception: ', ''));
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -171,61 +244,13 @@ class _WeddingScreenState extends State<WeddingScreen> {
   Future<void> _cancelWedding() async {
     if (_existingWedding == null) return;
 
-    final reasonController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    final razlog = await showDialog<String>(
+    final razlog = await showCancelReasonDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            const Expanded(child: Text('Otkazivanje')),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.pop(ctx),
-            ),
-          ],
-        ),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Otkazati rezervaciju? Unesite razlog (obavezno).',
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Razlog',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 2,
-                validator: (v) =>
-                    (v == null || v.trim().length < 3)
-                        ? 'Najmanje 3 karaktera'
-                        : null,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Ne'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (!(formKey.currentState?.validate() ?? false)) return;
-              Navigator.pop(ctx, reasonController.text.trim());
-            },
-            child: const Text('Otkaži rezervaciju'),
-          ),
-        ],
-      ),
+      title: 'Otkazivanje',
+      message: 'Otkazati rezervaciju? Unesite razlog (obavezno).',
+      confirmLabel: 'Otkaži rezervaciju',
     );
-    reasonController.dispose();
-    if (razlog == null) return;
+    if (razlog == null || !mounted) return;
 
     setState(() => _isSaving = true);
     try {
@@ -237,9 +262,12 @@ class _WeddingScreenState extends State<WeddingScreen> {
         );
       }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
+      if (mounted) {
+        final msg = e is ApiClientException
+            ? e.message
+            : e.toString().replaceFirst('Exception: ', '');
+        _showError(msg);
+      }
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -306,15 +334,17 @@ class _WeddingScreenState extends State<WeddingScreen> {
           const SizedBox(height: 4),
           Text(
             _selectedDate == null
-                ? 'Zeleni dani su slobodni. Zauzete datume nije moguće odabrati.'
+                ? 'Zeleni dani su slobodni. Rezervacija najmanje $_minLeadDays dana unaprijed.'
                 : 'Odabrano: ${DateFormat('dd.MM.yyyy.').format(_selectedDate!)}',
             style: TextStyle(color: Colors.grey[700], fontSize: 13),
           ),
           const SizedBox(height: 8),
           AvailabilityCalendar(
-            focusedDay: _calendarFocusedDay,
+            focusedDay: _calendarFocusedDay.isBefore(_calendarFirstDay)
+                ? _calendarFirstDay
+                : _calendarFocusedDay,
             selectedDay: _selectedDate,
-            firstDay: DateTime.now(),
+            firstDay: _calendarFirstDay,
             lastDay: DateTime(DateTime.now().year + 2, 12, 31),
             isDayAvailable: _isDateAvailable,
             onDaySelected: (day) {
@@ -324,7 +354,11 @@ class _WeddingScreenState extends State<WeddingScreen> {
               });
             },
             onPageChanged: (focused) {
-              setState(() => _calendarFocusedDay = focused);
+              setState(() {
+                _calendarFocusedDay = focused.isBefore(_calendarFirstDay)
+                    ? _calendarFirstDay
+                    : focused;
+              });
             },
             freeLabel: 'Slobodan datum',
             busyLabel: 'Zauzet datum',
@@ -365,16 +399,22 @@ class _WeddingScreenState extends State<WeddingScreen> {
                 context: context,
                 initialTime: _selectedTime,
               );
-              if (picked != null) {
-                if (picked.hour >= 14 && picked.hour <= 21) {
-                  setState(() => _selectedTime = picked);
-                } else if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Molimo odaberite vrijeme između 14:00 i 21:00'),
-                    ),
-                  );
-                }
+              if (picked == null || !mounted) return;
+              if (picked.hour < 14 || picked.hour > 21) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Molimo odaberite vrijeme između 14:00 i 21:00'),
+                  ),
+                );
+                return;
+              }
+              setState(() => _selectedTime = picked);
+              if (_isTerminInPast()) {
+                _showError(
+                  'Termin svadbe (datum i vrijeme) ne smije biti u prošlosti.',
+                );
+              } else if (_errorMessage.isNotEmpty) {
+                setState(() => _errorMessage = '');
               }
             },
           ),
@@ -406,6 +446,10 @@ class _WeddingScreenState extends State<WeddingScreen> {
               return null;
             },
           ),
+          if (_errorMessage.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Text(_errorMessage, style: const TextStyle(color: Colors.red)),
+          ],
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,

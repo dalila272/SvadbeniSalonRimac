@@ -264,11 +264,13 @@ class _DailyMeetingDetailsScreenState extends State<DailyMeetingDetailsScreen> {
     setState(() => _isSaving = true);
     try {
       await _provider.changeStatus(_meeting!.id, status, razlog: razlog);
-      if (mounted) Navigator.pop(context, 'reload');
+      if (!mounted) return;
+      Navigator.pop(context, 'reload');
+      return;
     } on ApiClientException catch (e) {
-      setState(() => _errorMessage = e.message);
+      if (mounted) setState(() => _errorMessage = e.message);
     } catch (e) {
-      setState(() => _errorMessage = e.toString());
+      if (mounted) setState(() => _errorMessage = e.toString());
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }

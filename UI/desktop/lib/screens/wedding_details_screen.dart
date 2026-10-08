@@ -37,6 +37,7 @@ class WeddingDetailsScreen extends StatefulWidget {
 
 class _WeddingDetailsScreenState extends State<WeddingDetailsScreen> {
   static const _brandColor = Color(0xFF875252);
+  static const int _minLeadDays = 3;
   static const _fieldDecoration = InputDecoration(
     border: OutlineInputBorder(),
     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
@@ -70,6 +71,12 @@ class _WeddingDetailsScreenState extends State<WeddingDetailsScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   String? _errorMessage;
+
+  DateTime get _minWeddingDate {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day)
+        .add(const Duration(days: _minLeadDays));
+  }
 
   bool get _isEditing => _wedding != null;
   bool get _canEditFields => !_isEditing || (_wedding!.status == 0);
@@ -110,6 +117,9 @@ class _WeddingDetailsScreenState extends State<WeddingDetailsScreen> {
       widget.initialDate.month,
       widget.initialDate.day,
     );
+    if (widget.wedding == null && _selectedDate.isBefore(_minWeddingDate)) {
+      _selectedDate = _minWeddingDate;
+    }
     _loadForm();
   }
 
@@ -232,6 +242,23 @@ class _WeddingDetailsScreenState extends State<WeddingDetailsScreen> {
       return;
     }
 
+    final selectedDay = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      _selectedDate.day,
+    );
+    final dateUnchanged = _isEditing &&
+        selectedDay.year == _wedding!.weddingDate.year &&
+        selectedDay.month == _wedding!.weddingDate.month &&
+        selectedDay.day == _wedding!.weddingDate.day;
+    if (!dateUnchanged && selectedDay.isBefore(_minWeddingDate)) {
+      setState(() {
+        _errorMessage =
+            'Rezervacija mora biti najmanje $_minLeadDays dana unaprijed.';
+      });
+      return;
+    }
+
     setState(() {
       _isSaving = true;
       _errorMessage = null;
@@ -313,10 +340,13 @@ class _WeddingDetailsScreenState extends State<WeddingDetailsScreen> {
 
   Future<void> _pickDate() async {
     if (!_canEditFields) return;
+    final initial = _selectedDate.isBefore(_minWeddingDate)
+        ? _minWeddingDate
+        : _selectedDate;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now(),
+      initialDate: initial,
+      firstDate: _minWeddingDate,
       lastDate: DateTime(DateTime.now().year + 2),
     );
     if (picked != null) setState(() => _selectedDate = picked);

@@ -79,7 +79,22 @@ public class PonudaService
     {
         var response = _mapper.Map<PonudaResponse>(entity);
         response.Muzicari = entity.MuzicariPonuda
-            .Select(mp => _mapper.Map<MuzicarResponse>(mp.Muzicar))
+            .Select(mp =>
+            {
+                var m = _mapper.Map<MuzicarResponse>(mp.Muzicar);
+                m.ZanrIds = mp.Muzicar.MuzicarZanrovi.Select(mz => mz.ZanrId).ToList();
+                m.Zanrovi = mp.Muzicar.MuzicarZanrovi
+                    .Where(mz => mz.Zanr != null)
+                    .Select(mz => new ZanrResponse
+                    {
+                        Id = mz.Zanr!.Id,
+                        Naziv = mz.Zanr.Naziv,
+                        IsActive = mz.Zanr.IsActive,
+                        CreatedAt = mz.Zanr.CreatedAt,
+                    })
+                    .ToList();
+                return m;
+            })
             .ToList();
         response.Dekoracije = entity.DekoracijePonuda
             .Select(dp => _mapper.Map<DekoracijaResponse>(dp.Dekoracija))
@@ -92,6 +107,8 @@ public class PonudaService
         var entity = await _dbContext.Set<Ponuda>()
             .Include(p => p.Meni)
             .Include(p => p.MuzicariPonuda).ThenInclude(mp => mp.Muzicar)
+                .ThenInclude(m => m.MuzicarZanrovi)
+                    .ThenInclude(mz => mz.Zanr)
             .Include(p => p.DekoracijePonuda).ThenInclude(dp => dp.Dekoracija)
             .FirstOrDefaultAsync(p => p.Id == id);
 

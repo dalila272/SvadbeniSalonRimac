@@ -64,14 +64,11 @@ class _HomeScreenState extends State<HomeScreen> {
         'datumOd': today.toIso8601String(),
         'pageSize': 50,
       });
-      final recommendationsFuture =
-          _recommendationsProvider.fetchRecommendations(limit: 5);
 
       final pendingWedding = await pendingWeddingFuture;
       final confirmedWedding = await confirmedWeddingFuture;
       final pendingMeetings = await pendingMeetingsFuture;
       final confirmedMeetings = await confirmedMeetingsFuture;
-      final recommendations = await recommendationsFuture;
 
       Wedding? activeWedding;
       if (pendingWedding.items.isNotEmpty) {
@@ -79,6 +76,11 @@ class _HomeScreenState extends State<HomeScreen> {
       } else if (confirmedWedding.items.isNotEmpty) {
         activeWedding = confirmedWedding.items.first;
       }
+
+      // Preporuke/ponude su relevantne dok klijent još bira paket.
+      final recommendations = activeWedding == null
+          ? await _recommendationsProvider.fetchRecommendations(limit: 5)
+          : <Recommendation>[];
 
       final upcomingMeetings = <DailyMeeting>[
         ...pendingMeetings.items,
@@ -131,9 +133,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 16),
                     ],
-                    _buildRecommendationsSection(),
-                    const SizedBox(height: 28),
                     _buildUpcomingSection(),
+                    if (_activeWedding == null) ...[
+                      const SizedBox(height: 28),
+                      _buildRecommendationsSection(),
+                    ],
                     const SizedBox(height: 28),
                     Text(
                       'Brze akcije',
@@ -142,18 +146,22 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                     ),
                     const SizedBox(height: 12),
-                    _buildActionCard(
-                      icon: Icons.card_giftcard_outlined,
-                      title: 'Pogledaj ponude',
-                      subtitle: 'Paketi i cijene za vašu svadbu',
-                      onTap: () =>
-                          Navigator.pushNamed(context, AppRoutes.packages),
-                    ),
-                    const SizedBox(height: 12),
+                    if (_activeWedding == null) ...[
+                      _buildActionCard(
+                        icon: Icons.card_giftcard_outlined,
+                        title: 'Pogledaj ponude',
+                        subtitle: 'Paketi i cijene za vašu svadbu',
+                        onTap: () =>
+                            Navigator.pushNamed(context, AppRoutes.packages),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
                     _buildActionCard(
                       icon: Icons.favorite_outline,
                       title: 'Moja svadba',
-                      subtitle: 'Rezervacija, datum i detalji',
+                      subtitle: _activeWedding != null
+                          ? 'Status, datum i detalji rezervacije'
+                          : 'Rezervacija, datum i detalji',
                       onTap: () =>
                           Navigator.pushNamed(context, AppRoutes.wedding),
                     ),
@@ -167,6 +175,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         AppRoutes.dailyMeetings,
                       ),
                     ),
+                    if (_activeWedding != null) ...[
+                      const SizedBox(height: 12),
+                      _buildActionCard(
+                        icon: Icons.star_rate_outlined,
+                        title: 'Ocjena paketa',
+                        subtitle: 'Dostupno nakon završene svadbe',
+                        onTap: () =>
+                            Navigator.pushNamed(context, AppRoutes.review),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -194,7 +212,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Planirajte svoj savršeni dan u salonu Rimac.',
+          _activeWedding != null
+              ? 'Vaša svadba je zakazana — pratite termine i detalje ispod.'
+              : 'Planirajte svoj savršeni dan u salonu Rimac.',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.grey[600],
               ),

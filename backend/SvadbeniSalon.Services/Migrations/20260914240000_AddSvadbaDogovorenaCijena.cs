@@ -12,6 +12,8 @@ public partial class AddSvadbaDogovorenaCijena : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
+        // ADD + UPDATE in one batch fails SQL Server name resolution when the column
+        // did not exist yet — use dynamic SQL for the UPDATE.
         migrationBuilder.Sql("""
             IF COL_LENGTH(N'dbo.Svadbe', N'DogovorenaCijena') IS NULL
             BEGIN
@@ -20,11 +22,13 @@ public partial class AddSvadbaDogovorenaCijena : Migration
                         CONSTRAINT [DF_Svadbe_DogovorenaCijena] DEFAULT (0);
             END
 
-            UPDATE s
-            SET s.[DogovorenaCijena] = p.[Cijena]
-            FROM [dbo].[Svadbe] s
-            INNER JOIN [dbo].[Ponude] p ON p.[Id] = s.[PonudaId]
-            WHERE s.[DogovorenaCijena] = 0;
+            EXEC(N'
+                UPDATE s
+                SET s.[DogovorenaCijena] = p.[Cijena]
+                FROM [dbo].[Svadbe] s
+                INNER JOIN [dbo].[Ponude] p ON p.[Id] = s.[PonudaId]
+                WHERE s.[DogovorenaCijena] = 0;
+            ');
             """);
     }
 

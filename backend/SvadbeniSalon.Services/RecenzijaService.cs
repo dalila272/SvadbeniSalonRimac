@@ -122,8 +122,28 @@ public class RecenzijaService
             throw new FluentValidation.ValidationException(errors);
         }
 
+        var ponuda = await _dbContext.Ponude
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == request.PonudaId && p.IsActive);
+        if (ponuda == null)
+        {
+            throw new ClientException("Paket nije pronađen ili nije aktivan.");
+        }
+
+        var alreadyRatedPackage = await _dbContext.Recenzije
+            .AnyAsync(r => r.UserId == userId && r.PonudaId == request.PonudaId);
+        if (alreadyRatedPackage)
+        {
+            throw new ClientException("Već ste ocijenili ovaj paket.");
+        }
+
+        if (!request.SvadbaId.HasValue)
+        {
+            throw new ClientException("Ocjenjivanje paketa moguće je tek kada se svadba završi.");
+        }
+
         var svadba = await _dbContext.Svadbe
-            .FirstOrDefaultAsync(s => s.Id == request.SvadbaId && s.UserId == userId);
+            .FirstOrDefaultAsync(s => s.Id == request.SvadbaId.Value && s.UserId == userId);
 
         if (svadba == null)
         {
@@ -137,11 +157,11 @@ public class RecenzijaService
 
         if (!ReviewEligibleStatuses.Contains(svadba.Status))
         {
-            throw new ClientException("Recenziju možete ostaviti tek nakon što je svadba završena.");
+            throw new ClientException("Ocjenjivanje paketa moguće je tek kada se svadba završi.");
         }
 
-        var duplicate = await _dbContext.Recenzije.AnyAsync(r => r.SvadbaId == request.SvadbaId);
-        if (duplicate)
+        var duplicateWedding = await _dbContext.Recenzije.AnyAsync(r => r.SvadbaId == request.SvadbaId.Value);
+        if (duplicateWedding)
         {
             throw new ClientException("Već ste ocijenili ovu svadbu.");
         }
@@ -150,7 +170,7 @@ public class RecenzijaService
         {
             UserId = userId,
             PonudaId = request.PonudaId,
-            SvadbaId = request.SvadbaId,
+            SvadbaId = svadba.Id,
             Ocjena = request.Ocjena,
             Komentar = request.Komentar?.Trim(),
             CreatedAt = DateTime.UtcNow,
@@ -202,6 +222,9 @@ public class RecenzijaService
         _dbContext.Recenzije.Remove(entity);
         await _dbContext.SaveChangesAsync();
     }
+
+    protected override RecenzijaResponse MapEntityToResponse(Recenzija entity)
+        => MapRecenzija(entity);
 
     private bool CanAccess(Recenzija entity)
     {

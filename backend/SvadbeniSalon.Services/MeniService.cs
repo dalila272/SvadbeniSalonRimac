@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using SvadbeniSalon.Model.Enums;
 using SvadbeniSalon.Model.Exceptions;
 using SvadbeniSalon.Model.Requests;
 using SvadbeniSalon.Model.Responses;
@@ -88,8 +87,6 @@ public class MeniService
 
     public override async Task<MeniResponse> InsertAsync(MeniInsertRequest request)
     {
-        await ValidateArtikliAsync(request.HranaIds, request.PiceIds);
-
         await using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
@@ -107,8 +104,6 @@ public class MeniService
 
     public override async Task<MeniResponse> UpdateAsync(int id, MeniUpdateRequest request)
     {
-        await ValidateArtikliAsync(request.HranaIds, request.PiceIds);
-
         await using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
@@ -175,31 +170,5 @@ public class MeniService
         }
 
         await _dbContext.SaveChangesAsync();
-    }
-
-    private async Task ValidateArtikliAsync(List<int> hranaIds, List<int> piceIds)
-    {
-        var hranaDistinct = hranaIds.Distinct().ToList();
-        var piceDistinct = piceIds.Distinct().ToList();
-
-        if (hranaDistinct.Count > 0)
-        {
-            var hranaCount = await _dbContext.Set<Artikal>()
-                .CountAsync(a => hranaDistinct.Contains(a.Id) && a.Tip == TipArtikla.Hrana && a.IsActive);
-            if (hranaCount != hranaDistinct.Count)
-            {
-                throw new ClientException("Jedna ili više odabranih stavki hrane nije validna.");
-            }
-        }
-
-        if (piceDistinct.Count > 0)
-        {
-            var piceCount = await _dbContext.Set<Artikal>()
-                .CountAsync(a => piceDistinct.Contains(a.Id) && a.Tip == TipArtikla.Pice && a.IsActive);
-            if (piceCount != piceDistinct.Count)
-            {
-                throw new ClientException("Jedno ili više odabranih pića nije validno.");
-            }
-        }
     }
 }

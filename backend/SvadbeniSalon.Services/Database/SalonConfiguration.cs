@@ -74,11 +74,19 @@ public partial class SvadbeniSalonDbContext : DbContext
             .HasOne(r => r.Svadba)
             .WithMany()
             .HasForeignKey(r => r.SvadbaId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // One rating per user per package (pre- or post-wedding).
+        modelBuilder.Entity<Recenzija>()
+            .HasIndex(r => new { r.UserId, r.PonudaId })
+            .IsUnique();
+
+        // At most one review linked to a given wedding (when SvadbaId is set).
         modelBuilder.Entity<Recenzija>()
             .HasIndex(r => r.SvadbaId)
-            .IsUnique();
+            .IsUnique()
+            .HasFilter("[SvadbaId] IS NOT NULL");
 
         modelBuilder.Entity<Rata>()
             .HasOne(r => r.Svadba)

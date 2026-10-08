@@ -2,7 +2,7 @@ class Review {
   final int id;
   final int offerId;
   final String offerName;
-  final int weddingId;
+  final int? weddingId;
   final int rating;
   final String? comment;
   final DateTime createdAt;
@@ -11,7 +11,7 @@ class Review {
     required this.id,
     required this.offerId,
     required this.offerName,
-    required this.weddingId,
+    this.weddingId,
     required this.rating,
     this.comment,
     required this.createdAt,
@@ -24,9 +24,11 @@ class Review {
           ? json['ponudaId']
           : int.parse(json['ponudaId'].toString()),
       offerName: json['ponudaNaziv'] ?? '',
-      weddingId: json['svadbaId'] is int
-          ? json['svadbaId']
-          : int.parse(json['svadbaId'].toString()),
+      weddingId: json['svadbaId'] == null
+          ? null
+          : (json['svadbaId'] is int
+              ? json['svadbaId'] as int
+              : int.parse(json['svadbaId'].toString())),
       rating: json['ocjena'] is int
           ? json['ocjena']
           : int.parse(json['ocjena'].toString()),

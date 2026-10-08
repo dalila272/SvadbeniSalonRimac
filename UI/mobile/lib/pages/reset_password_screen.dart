@@ -65,8 +65,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             newPassword: password,
           );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-      Navigator.of(context).pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
+      final navigator = Navigator.of(context);
+      final messenger = ScaffoldMessenger.of(context);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        messenger.showSnackBar(SnackBar(content: Text(message)));
+        navigator.pushNamedAndRemoveUntil(AppRoutes.login, (_) => false);
+      });
     } catch (e) {
       setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
     } finally {

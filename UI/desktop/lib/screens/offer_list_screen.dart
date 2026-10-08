@@ -43,7 +43,7 @@ class _OfferListScreenState extends State<OfferListScreen> {
   bool isLoading = true;
 
   final _nameController = TextEditingController();
-  _OfferStatusFilter _statusFilter = _OfferStatusFilter.active;
+  _OfferStatusFilter _statusFilter = _OfferStatusFilter.all;
   int? _selectedMenuId;
   int? _selectedMusicianId;
   int? _selectedDecorationId;
@@ -215,12 +215,15 @@ class _OfferListScreenState extends State<OfferListScreen> {
     if (confirmed != true) return;
 
     try {
+      final wasActive = offer.isActive;
       await _provider.remove(offer.id);
       if (mounted) {
+        final message = wasActive && _statusFilter == _OfferStatusFilter.active
+            ? 'Ponuda je deaktivirana. Trenutni filter je „Aktivne“ — '
+                'odaberite „Sve“ ili „Neaktivne“ da je vidite.'
+            : 'Ponuda je uklonjena ili deaktivirana.';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Ponuda je uklonjena ili deaktivirana.'),
-          ),
+          SnackBar(content: Text(message)),
         );
       }
       _load();
@@ -279,16 +282,16 @@ class _OfferListScreenState extends State<OfferListScreen> {
                       value: _statusFilter,
                       items: const [
                         DropdownMenuItem(
+                          value: _OfferStatusFilter.all,
+                          child: Text('Sve'),
+                        ),
+                        DropdownMenuItem(
                           value: _OfferStatusFilter.active,
                           child: Text('Aktivne'),
                         ),
                         DropdownMenuItem(
                           value: _OfferStatusFilter.inactive,
                           child: Text('Neaktivne'),
-                        ),
-                        DropdownMenuItem(
-                          value: _OfferStatusFilter.all,
-                          child: Text('Sve'),
                         ),
                       ],
                       onChanged: (value) {

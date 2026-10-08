@@ -36,15 +36,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     try {
       final message = await context.read<AuthProvider>().forgotPassword(value);
       if (!mounted) return;
-      Navigator.of(context).pushNamed(
-        AppRoutes.resetPassword,
-        arguments: value,
-      );
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      // Defer navigation so ElevatedButton ink splash can detach first
+      // (avoids Material 'referenceBox.attached' assertion).
+      final navigator = Navigator.of(context);
+      final messenger = ScaffoldMessenger.of(context);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        messenger.showSnackBar(SnackBar(content: Text(message)));
+        navigator.pushNamed(AppRoutes.resetPassword, arguments: value);
+      });
     } catch (e) {
-      setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
+      if (mounted) {
+        setState(() => _errorMessage = e.toString().replaceFirst('Exception: ', ''));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -37,15 +37,33 @@ class AvailabilityCalendar extends StatelessWidget {
   bool _sameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
+  DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
+
+  /// table_calendar asserts focusedDay >= firstDay (and <= lastDay).
+  DateTime _clampFocused(DateTime first, DateTime last, DateTime focused) {
+    var day = _dateOnly(focused);
+    if (day.isBefore(first)) return first;
+    if (day.isAfter(last)) return last;
+    return day;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final first = _dateOnly(firstDay);
+    final last = _dateOnly(lastDay);
+    final focused = _clampFocused(first, last, focusedDay);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TableCalendar(
-          firstDay: firstDay,
-          lastDay: lastDay,
-          focusedDay: focusedDay,
+          key: ValueKey(
+            'cal-${focused.year}-${focused.month}-'
+            '${selectedDay?.day ?? 0}-${first.millisecondsSinceEpoch}',
+          ),
+          firstDay: first,
+          lastDay: last,
+          focusedDay: focused,
           startingDayOfWeek: StartingDayOfWeek.monday,
           calendarFormat: CalendarFormat.month,
           availableCalendarFormats: const {
@@ -58,9 +76,7 @@ class AvailabilityCalendar extends StatelessWidget {
           selectedDayPredicate: (day) =>
               selectedDay != null && _sameDay(day, selectedDay!),
           enabledDayPredicate: (day) {
-            if (day.isBefore(DateTime(firstDay.year, firstDay.month, firstDay.day))) {
-              return false;
-            }
+            if (day.isBefore(first)) return false;
             return isDayAvailable(day);
           },
           onDaySelected: (selected, focused) {

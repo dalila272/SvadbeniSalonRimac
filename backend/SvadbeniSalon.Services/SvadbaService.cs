@@ -152,7 +152,12 @@ public class SvadbaService
         }
 
         await ValidateBusinessRulesAsync(
-            request.PonudaId, request.DatumSvadbe, request.Vrijeme, targetUserId, null);
+            request.PonudaId,
+            request.DatumSvadbe,
+            request.Vrijeme,
+            targetUserId,
+            excludeId: null,
+            previousWeddingDate: null);
 
         var dogovorenaCijena = await ResolveOfferPriceAsync(request.PonudaId);
 
@@ -228,7 +233,12 @@ public class SvadbaService
         }
 
         await ValidateBusinessRulesAsync(
-            request.PonudaId, request.DatumSvadbe, request.Vrijeme, entity.UserId, id);
+            request.PonudaId,
+            request.DatumSvadbe,
+            request.Vrijeme,
+            entity.UserId,
+            excludeId: id,
+            previousWeddingDate: entity.DatumSvadbe);
 
         var existingPayments = await _dbContext.Rate.CountAsync(r => r.SvadbaId == id);
         if (request.BrojRata < existingPayments)
@@ -444,9 +454,11 @@ public class SvadbaService
         DateTime datumSvadbe,
         TimeSpan vrijeme,
         int userId,
-        int? excludeId)
+        int? excludeId,
+        DateTime? previousWeddingDate)
     {
         EnsureWeddingNotInPast(datumSvadbe, vrijeme);
+        EnsureWeddingLeadTime(datumSvadbe, previousWeddingDate);
 
         var ponudaExists = await _dbContext.Ponude.AnyAsync(p => p.Id == ponudaId && p.IsActive);
         if (!ponudaExists)
@@ -477,18 +489,31 @@ public class SvadbaService
 
     private static void EnsureWeddingNotInPast(DateTime datumSvadbe, TimeSpan vrijeme)
     {
-        var termin = datumSvadbe.Date.Add(vrijeme);
-        if (termin <= DateTime.Now)
+        if (SalonClock.IsInPast(datumSvadbe, vrijeme))
         {
             throw new ClientException(
                 "Termin svadbe (datum i vrijeme) ne smije biti u prošlosti.");
         }
     }
 
+    private static void EnsureWeddingLeadTime(DateTime datumSvadbe, DateTime? previousWeddingDate)
+    {
+        if (previousWeddingDate.HasValue
+            && previousWeddingDate.Value.Date == datumSvadbe.Date)
+        {
+            return;
+        }
+
+        if (datumSvadbe.Date < SalonClock.MinWeddingBookingDate)
+        {
+            throw new ClientException(
+                $"Rezervacija mora biti najmanje {SalonClock.MinWeddingLeadDays} dana unaprijed.");
+        }
+    }
+
     private static void EnsureCanComplete(Svadba entity, decimal paid)
     {
-        var termin = entity.DatumSvadbe.Date.Add(entity.Vrijeme);
-        if (termin > DateTime.Now)
+        if (SalonClock.IsInFuture(entity.DatumSvadbe, entity.Vrijeme))
         {
             throw new ClientException(
                 "Svadbu možete označiti završenom tek nakon što je termin (datum i vrijeme) prošao.");

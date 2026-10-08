@@ -18,10 +18,13 @@ public class Recenzija
     [ForeignKey(nameof(PonudaId))]
     public Ponuda Ponuda { get; set; } = null!;
 
-    public int SvadbaId { get; set; }
+    /// <summary>
+    /// Optional: set when rating after a completed wedding; null for pre-wedding package ratings.
+    /// </summary>
+    public int? SvadbaId { get; set; }
 
     [ForeignKey(nameof(SvadbaId))]
-    public Svadba Svadba { get; set; } = null!;
+    public Svadba? Svadba { get; set; }
 
     [Range(1, 5)]
     public int Ocjena { get; set; }

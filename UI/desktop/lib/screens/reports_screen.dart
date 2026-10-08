@@ -70,9 +70,30 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Future<void> _printPdf(List<int> bytes, String jobName) async {
-    await Printing.layoutPdf(
-      name: jobName,
-      onLayout: (_) async => Uint8List.fromList(bytes),
+    final safeName = jobName
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+    final fileName =
+        '${safeName.isEmpty ? 'izvjestaj' : safeName}-${_fileDate(DateTime.now())}.pdf';
+
+    // Printing.layoutPdf na macOS često zapne u petlji / sandbox grešci.
+    // Pouzdanije: sačuvaj PDF i otvori ga (Cmd+P u Preview).
+    if (Platform.isMacOS) {
+      final file = await _savePdf(fileName, bytes);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('PDF otvoren. Za štampu pritisnite Cmd+P.'),
+        ),
+      );
+      if (file != null) await OpenFile.open(file.path);
+      return;
+    }
+
+    await Printing.sharePdf(
+      bytes: Uint8List.fromList(bytes),
+      filename: fileName,
     );
   }
 

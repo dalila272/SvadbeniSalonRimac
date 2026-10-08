@@ -102,7 +102,7 @@ public static class IzvjestajPdfGenerator
                 page.Footer().AlignCenter().Text(text =>
                 {
                     text.Span("Generisano: ");
-                    text.Span($"{DateTime.UtcNow:dd.MM.yyyy. HH:mm} UTC").Bold();
+                    text.Span($"{DateTime.Now:dd.MM.yyyy. HH:mm}").Bold();
                 });
             });
         }).GeneratePdf();
@@ -187,7 +187,7 @@ public static class IzvjestajPdfGenerator
                 page.Footer().AlignCenter().Text(text =>
                 {
                     text.Span("Generisano: ");
-                    text.Span($"{DateTime.UtcNow:dd.MM.yyyy. HH:mm} UTC").Bold();
+                    text.Span($"{DateTime.Now:dd.MM.yyyy. HH:mm}").Bold();
                 });
             });
         }).GeneratePdf();

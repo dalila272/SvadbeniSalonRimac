@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SvadbeniSalon.Services.Database;
 
@@ -11,9 +12,11 @@ using SvadbeniSalon.Services.Database;
 namespace SvadbeniSalon.Services.Migrations
 {
     [DbContext(typeof(SvadbeniSalonDbContext))]
-    partial class SvadbeniSalonDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261001124945_SyncModelSnapshot")]
+    partial class SyncModelSnapshot
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -135,7 +138,7 @@ namespace SvadbeniSalon.Services.Migrations
                             CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
                             Naziv = "Cvjetna dekoracija",
-                            Opis = "Bijele ruže, hortenzije i svijeće za romantičan ambijent"
+                            Opis = "Bijeli ruže i hortenzije"
                         },
                         new
                         {
@@ -144,7 +147,7 @@ namespace SvadbeniSalon.Services.Migrations
                             CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
                             Naziv = "Zlatna dekoracija",
-                            Opis = "Luksuzni zlatni detalji, kristalne vase i LED akcenti"
+                            Opis = "Luksuzni zlatni detalji"
                         },
                         new
                         {
@@ -153,7 +156,7 @@ namespace SvadbeniSalon.Services.Migrations
                             CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
                             Naziv = "Rustik dekoracija",
-                            Opis = "Drvo, laneno platno i suho cvijeće za tradicionalni ugođaj"
+                            Opis = "Prirodni drveni elementi"
                         });
                 });
 
@@ -420,48 +423,24 @@ namespace SvadbeniSalon.Services.Migrations
                             Id = 1,
                             CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
-                            Naziv = "Hit Parade Bend",
-                            Opis = "Live pop i evergreen hitovi za plesni dio večeri"
+                            Naziv = "Michael Jackson",
+                            Opis = "Pop legenda"
                         },
                         new
                         {
                             Id = 2,
                             CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
-                            Naziv = "Electric Avenue",
-                            Opis = "Energičan rock bend za zabavniju svadbenu atmosferu"
+                            Naziv = "The Beatles",
+                            Opis = "Rock klasici"
                         },
                         new
                         {
                             Id = 3,
                             CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
                             IsActive = true,
-                            Naziv = "Kvartet Armonija",
-                            Opis = "Gudački kvartet za ceremoniju i elegantni doček"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsActive = true,
-                            Naziv = "Sevdah Ansambl",
-                            Opis = "Narodna i starogradska muzika uživo"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsActive = true,
-                            Naziv = "Jazz Club Trio",
-                            Opis = "Lounge i swing jazz tokom večere"
-                        },
-                        new
-                        {
-                            Id = 6,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsActive = true,
-                            Naziv = "Duo Tišina",
-                            Opis = "Akustični duo za intimne trenutke i evergreen klasike"
+                            Naziv = "Pjotr Iljič Čajkovski",
+                            Opis = "Balet muzika"
                         });
                 });
 
@@ -488,32 +467,22 @@ namespace SvadbeniSalon.Services.Migrations
                         new
                         {
                             PonudaId = 1,
-                            MuzicarId = 5
+                            MuzicarId = 2
                         },
                         new
                         {
                             PonudaId = 2,
-                            MuzicarId = 3
-                        },
-                        new
-                        {
-                            PonudaId = 2,
-                            MuzicarId = 6
+                            MuzicarId = 2
                         },
                         new
                         {
                             PonudaId = 3,
-                            MuzicarId = 4
+                            MuzicarId = 3
                         },
                         new
                         {
                             PonudaId = 4,
                             MuzicarId = 1
-                        },
-                        new
-                        {
-                            PonudaId = 4,
-                            MuzicarId = 2
                         });
                 });
 
@@ -539,43 +508,13 @@ namespace SvadbeniSalon.Services.Migrations
                         },
                         new
                         {
-                            MuzicarId = 1,
-                            ZanrId = 9
-                        },
-                        new
-                        {
                             MuzicarId = 2,
                             ZanrId = 2
                         },
                         new
                         {
                             MuzicarId = 3,
-                            ZanrId = 5
-                        },
-                        new
-                        {
-                            MuzicarId = 4,
-                            ZanrId = 6
-                        },
-                        new
-                        {
-                            MuzicarId = 4,
-                            ZanrId = 7
-                        },
-                        new
-                        {
-                            MuzicarId = 5,
-                            ZanrId = 4
-                        },
-                        new
-                        {
-                            MuzicarId = 6,
-                            ZanrId = 8
-                        },
-                        new
-                        {
-                            MuzicarId = 6,
-                            ZanrId = 9
+                            ZanrId = 3
                         });
                 });
 
@@ -702,7 +641,7 @@ namespace SvadbeniSalon.Services.Migrations
                             IsActive = true,
                             MeniId = 2,
                             Naziv = "Gold paket",
-                            Opis = "Luksuzna večer: premium meni, zlatna dekoracija, pop/evergreen bend i jazz trio"
+                            Opis = "Luksuzni paket sa premium menijem i zlatnom dekoracijom"
                         },
                         new
                         {
@@ -712,7 +651,7 @@ namespace SvadbeniSalon.Services.Migrations
                             IsActive = true,
                             MeniId = 1,
                             Naziv = "Silver paket",
-                            Opis = "Elegantna klasika: klasični meni, cvjetna dekoracija, gudači i akustični duo"
+                            Opis = "Elegantan paket sa klasičnim menijem"
                         },
                         new
                         {
@@ -722,7 +661,7 @@ namespace SvadbeniSalon.Services.Migrations
                             IsActive = true,
                             MeniId = 1,
                             Naziv = "Bronze paket",
-                            Opis = "Tradicionalna svadba: narodna i starogradska muzika, rustik dekoracija"
+                            Opis = "Osnovni paket za manje proslave"
                         },
                         new
                         {
@@ -732,7 +671,7 @@ namespace SvadbeniSalon.Services.Migrations
                             IsActive = true,
                             MeniId = 1,
                             Naziv = "Regular paket",
-                            Opis = "Zabavna večer: pop i rock bend, cvjetna dekoracija, klasični meni"
+                            Opis = "Standardni paket sa cvjetnom dekoracijom"
                         });
                 });
 
@@ -906,55 +845,6 @@ namespace SvadbeniSalon.Services.Migrations
                             PonudaId = 2,
                             SvadbaId = 101,
                             UserId = 6
-                        },
-                        new
-                        {
-                            Id = 102,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Komentar = "Sevdah Ansambl je napravio atmosferu — baš onako kako smo htjeli za tradicionalnu svadbu.",
-                            Ocjena = 5,
-                            PonudaId = 3,
-                            SvadbaId = 104,
-                            UserId = 9
-                        },
-                        new
-                        {
-                            Id = 103,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Komentar = "Kvartet Armonija i Duo Tišina — elegantno od dočeka do večere.",
-                            Ocjena = 5,
-                            PonudaId = 2,
-                            SvadbaId = 105,
-                            UserId = 10
-                        },
-                        new
-                        {
-                            Id = 104,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Komentar = "Gosti su plesali cijelu noć uz pop i rock bend.",
-                            Ocjena = 5,
-                            PonudaId = 4,
-                            SvadbaId = 106,
-                            UserId = 11
-                        },
-                        new
-                        {
-                            Id = 105,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Komentar = "Gold paket je luksuzan; jazz trio tokom večere je bio hit.",
-                            Ocjena = 4,
-                            PonudaId = 1,
-                            SvadbaId = 107,
-                            UserId = 11
-                        },
-                        new
-                        {
-                            Id = 106,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Komentar = "Elegantno, ali nama više odgovara narodni ugođaj.",
-                            Ocjena = 3,
-                            PonudaId = 2,
-                            UserId = 9
                         });
                 });
 
@@ -1143,62 +1033,6 @@ namespace SvadbeniSalon.Services.Migrations
                             Status = 2,
                             UserId = 6,
                             Vrijeme = new TimeSpan(0, 16, 30, 0, 0)
-                        },
-                        new
-                        {
-                            Id = 104,
-                            BrojGostiju = 90,
-                            BrojRata = 1,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DatumSvadbe = new DateTime(2025, 7, 12, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DogovorenaCijena = 7000m,
-                            Napomena = "Tradicionalna svadba — zadovoljni narodnim ansamblom.",
-                            PonudaId = 3,
-                            Status = 3,
-                            UserId = 9,
-                            Vrijeme = new TimeSpan(0, 17, 0, 0, 0)
-                        },
-                        new
-                        {
-                            Id = 105,
-                            BrojGostiju = 110,
-                            BrojRata = 2,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DatumSvadbe = new DateTime(2025, 8, 23, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DogovorenaCijena = 10000m,
-                            Napomena = "Elegantna večer uz gudače.",
-                            PonudaId = 2,
-                            Status = 3,
-                            UserId = 10,
-                            Vrijeme = new TimeSpan(0, 18, 0, 0, 0)
-                        },
-                        new
-                        {
-                            Id = 106,
-                            BrojGostiju = 100,
-                            BrojRata = 1,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DatumSvadbe = new DateTime(2025, 10, 5, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DogovorenaCijena = 8500m,
-                            Napomena = "Zabavna večer uz pop/rock bend.",
-                            PonudaId = 4,
-                            Status = 3,
-                            UserId = 11,
-                            Vrijeme = new TimeSpan(0, 19, 0, 0, 0)
-                        },
-                        new
-                        {
-                            Id = 107,
-                            BrojGostiju = 160,
-                            BrojRata = 2,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DatumSvadbe = new DateTime(2024, 11, 16, 0, 0, 0, 0, DateTimeKind.Utc),
-                            DogovorenaCijena = 15000m,
-                            Napomena = "Prethodna luksuzna svadba u porodici.",
-                            PonudaId = 1,
-                            Status = 3,
-                            UserId = 11,
-                            Vrijeme = new TimeSpan(0, 18, 30, 0, 0)
                         });
                 });
 
@@ -1294,42 +1128,6 @@ namespace SvadbeniSalon.Services.Migrations
                             PasswordHash = "qU2ck45AOJU9W8CVxAO89FyOb8M=",
                             PasswordSalt = "65z57pEcbOuw+c9Ma3X10Q==",
                             Username = "admin"
-                        },
-                        new
-                        {
-                            Id = 9,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "ana.popovic@salon.local",
-                            FirstName = "Ana",
-                            IsActive = true,
-                            LastName = "Popović",
-                            PasswordHash = "N5b4vpOtGo4txmR/IoPFNoRg1kY=",
-                            PasswordSalt = "JopMnUSdt7Cec4gKUV0rag==",
-                            Username = "ana.popovic"
-                        },
-                        new
-                        {
-                            Id = 10,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "marko.softic@salon.local",
-                            FirstName = "Marko",
-                            IsActive = true,
-                            LastName = "Softić",
-                            PasswordHash = "N5b4vpOtGo4txmR/IoPFNoRg1kY=",
-                            PasswordSalt = "JopMnUSdt7Cec4gKUV0rag==",
-                            Username = "marko.softic"
-                        },
-                        new
-                        {
-                            Id = 11,
-                            CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "ena.kovac@salon.local",
-                            FirstName = "Ena",
-                            IsActive = true,
-                            LastName = "Kovač",
-                            PasswordHash = "N5b4vpOtGo4txmR/IoPFNoRg1kY=",
-                            PasswordSalt = "JopMnUSdt7Cec4gKUV0rag==",
-                            Username = "ena.kovac"
                         });
                 });
 
@@ -1379,27 +1177,6 @@ namespace SvadbeniSalon.Services.Migrations
                             DateAssigned = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
                             RoleId = 1,
                             UserId = 8
-                        },
-                        new
-                        {
-                            Id = 9,
-                            DateAssigned = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            RoleId = 2,
-                            UserId = 9
-                        },
-                        new
-                        {
-                            Id = 10,
-                            DateAssigned = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            RoleId = 2,
-                            UserId = 10
-                        },
-                        new
-                        {
-                            Id = 11,
-                            DateAssigned = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            RoleId = 2,
-                            UserId = 11
                         });
                 });
 
@@ -1416,48 +1193,6 @@ namespace SvadbeniSalon.Services.Migrations
                     b.HasIndex("ZanrId");
 
                     b.ToTable("UserZanrovi");
-
-                    b.HasData(
-                        new
-                        {
-                            UserId = 6,
-                            ZanrId = 1
-                        },
-                        new
-                        {
-                            UserId = 6,
-                            ZanrId = 9
-                        },
-                        new
-                        {
-                            UserId = 9,
-                            ZanrId = 6
-                        },
-                        new
-                        {
-                            UserId = 9,
-                            ZanrId = 7
-                        },
-                        new
-                        {
-                            UserId = 10,
-                            ZanrId = 5
-                        },
-                        new
-                        {
-                            UserId = 10,
-                            ZanrId = 4
-                        },
-                        new
-                        {
-                            UserId = 11,
-                            ZanrId = 1
-                        },
-                        new
-                        {
-                            UserId = 11,
-                            ZanrId = 2
-                        });
                 });
 
             modelBuilder.Entity("SvadbeniSalon.Services.Database.Zanr", b =>
@@ -1502,7 +1237,7 @@ namespace SvadbeniSalon.Services.Migrations
                         {
                             Id = 3,
                             CreatedAt = new DateTime(2026, 6, 14, 0, 0, 0, 0, DateTimeKind.Utc),
-                            IsActive = false,
+                            IsActive = true,
                             Naziv = "Balet"
                         },
                         new

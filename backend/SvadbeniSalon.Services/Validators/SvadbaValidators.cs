@@ -11,15 +11,16 @@ public class SvadbaInsertValidator : AbstractValidator<SvadbaInsertRequest>
             .GreaterThan(0).WithMessage("Paket je obavezan.");
 
         RuleFor(x => x.DatumSvadbe)
-            .Must(d => d.Date >= DateTime.Today)
-            .WithMessage("Datum svadbe mora biti danas ili u budućnosti.");
+            .Must(d => d.Date >= SalonClock.MinWeddingBookingDate)
+            .WithMessage(
+                $"Datum svadbe mora biti najmanje {SalonClock.MinWeddingLeadDays} dana unaprijed.");
 
         RuleFor(x => x.Vrijeme)
             .Must(v => v >= TimeSpan.FromHours(14) && v <= TimeSpan.FromHours(21))
             .WithMessage("Vrijeme mora biti između 14:00 i 21:00.");
 
         RuleFor(x => x)
-            .Must(x => x.DatumSvadbe.Date.Add(x.Vrijeme) > DateTime.Now)
+            .Must(x => SalonClock.IsInFuture(x.DatumSvadbe, x.Vrijeme))
             .WithMessage("Termin svadbe (datum i vrijeme) ne smije biti u prošlosti.");
 
         RuleFor(x => x.BrojGostiju)
@@ -40,8 +41,9 @@ public class SvadbaUpdateValidator : AbstractValidator<SvadbaUpdateRequest>
         RuleFor(x => x.PonudaId)
             .GreaterThan(0).WithMessage("Paket je obavezan.");
 
+        // Lead-time se na update-u provjerava u servisu samo ako se datum mijenja.
         RuleFor(x => x.DatumSvadbe)
-            .Must(d => d.Date >= DateTime.Today)
+            .Must(d => d.Date >= SalonClock.Today)
             .WithMessage("Datum svadbe mora biti danas ili u budućnosti.");
 
         RuleFor(x => x.Vrijeme)
@@ -49,7 +51,7 @@ public class SvadbaUpdateValidator : AbstractValidator<SvadbaUpdateRequest>
             .WithMessage("Vrijeme mora biti između 14:00 i 21:00.");
 
         RuleFor(x => x)
-            .Must(x => x.DatumSvadbe.Date.Add(x.Vrijeme) > DateTime.Now)
+            .Must(x => SalonClock.IsInFuture(x.DatumSvadbe, x.Vrijeme))
             .WithMessage("Termin svadbe (datum i vrijeme) ne smije biti u prošlosti.");
 
         RuleFor(x => x.BrojGostiju)

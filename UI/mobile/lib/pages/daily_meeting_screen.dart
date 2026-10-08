@@ -6,6 +6,7 @@ import 'package:svadbeni_salon_rimac/providers/daily_meeting_provider.dart';
 import 'package:svadbeni_salon_rimac/utils/daily_meeting_slots.dart';
 import 'package:svadbeni_salon_rimac/utils/master_screen.dart';
 import 'package:svadbeni_salon_rimac/widgets/availability_calendar.dart';
+import 'package:svadbeni_salon_rimac/widgets/cancel_reason_dialog.dart';
 
 class DailyMeetingScreen extends StatefulWidget {
   const DailyMeetingScreen({super.key});
@@ -31,23 +32,29 @@ class _DailyMeetingScreenState extends State<DailyMeetingScreen> {
     _loadMeetings();
   }
 
-  Future<void> _loadMeetings() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
+  Future<void> _loadMeetings({bool showFullLoader = true}) async {
+    if (showFullLoader) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+    } else if (mounted) {
+      setState(() => _errorMessage = '');
+    }
 
     try {
       final result = await _provider.get(filter: {'pageSize': 100});
       final busySlots = await _provider.getBusySlots();
       final items = List<DailyMeeting>.from(result.items)
         ..sort((a, b) => b.meetingDate.compareTo(a.meetingDate));
+      if (!mounted) return;
       setState(() {
         _meetings = items;
         _busySlots = busySlots;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -96,7 +103,7 @@ class _DailyMeetingScreenState extends State<DailyMeetingScreen> {
         _showNewMeetingFields = false;
         _newMeetingDate = null;
       });
-      await _loadMeetings();
+      await _loadMeetings(showFullLoader: false);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -112,73 +119,29 @@ class _DailyMeetingScreenState extends State<DailyMeetingScreen> {
     if (!meeting.canEdit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Samo sastanci na čekanju se mogu obrisati.'),
+          content: Text('Samo sastanci na čekanju se mogu otkazati.'),
         ),
       );
       return;
     }
 
-    final reasonController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    final razlog = await showDialog<String>(
+    final razlog = await showCancelReasonDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            const Expanded(child: Text('Otkazivanje sastanka')),
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: () => Navigator.pop(ctx),
-            ),
-          ],
-        ),
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Otkazati sastanak od ${DateFormat('dd.MM.yyyy. – HH:mm').format(meeting.meetingDate)}? '
-                'Status će biti „otkazan“ (nema brisanja zapisa).',
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: reasonController,
-                decoration: const InputDecoration(
-                  labelText: 'Razlog',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 2,
-                validator: (v) =>
-                    (v == null || v.trim().length < 3)
-                        ? 'Najmanje 3 karaktera'
-                        : null,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Odustani'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (!(formKey.currentState?.validate() ?? false)) return;
-              Navigator.pop(ctx, reasonController.text.trim());
-            },
-            child: const Text('Otkaži'),
-          ),
-        ],
-      ),
+      title: 'Otkazivanje sastanka',
+      message:
+          'Otkazati sastanak od ${DateFormat('dd.MM.yyyy. – HH:mm').format(meeting.meetingDate)}? '
+          'Status će biti „otkazan“ (nema brisanja zapisa).',
     );
-    reasonController.dispose();
-    if (razlog == null) return;
+    if (razlog == null || !mounted) return;
 
     setState(() => _isSaving = true);
     try {
       await _provider.cancel(meeting.id, razlog: razlog);
-      await _loadMeetings();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sastanak je otkazan.')),
+      );
+      await _loadMeetings(showFullLoader: false);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -204,7 +167,7 @@ class _DailyMeetingScreenState extends State<DailyMeetingScreen> {
       await _provider.update(meeting.id, {
         'datumSastanka': updated.toIso8601String(),
       });
-      await _loadMeetings();
+      await _loadMeetings(showFullLoader: false);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -512,7 +475,11 @@ class _MeetingSlotPickerSheetState extends State<_MeetingSlotPickerSheet> {
             AvailabilityCalendar(
               focusedDay: _focusedDay,
               selectedDay: _selectedDay,
-              firstDay: DateTime.now(),
+              firstDay: DateTime(
+                DateTime.now().year,
+                DateTime.now().month,
+                DateTime.now().day,
+              ),
               lastDay: DateTime(DateTime.now().year + 1, 12, 31),
               isDayAvailable: _dayAvailable,
               onDaySelected: (day) {
@@ -523,7 +490,14 @@ class _MeetingSlotPickerSheetState extends State<_MeetingSlotPickerSheet> {
                 });
               },
               onPageChanged: (focused) {
-                setState(() => _focusedDay = focused);
+                final today = DateTime(
+                  DateTime.now().year,
+                  DateTime.now().month,
+                  DateTime.now().day,
+                );
+                setState(() {
+                  _focusedDay = focused.isBefore(today) ? today : focused;
+                });
               },
               freeLabel: 'Ima slobodnih termina',
               busyLabel: 'Nema slobodnih termina',
