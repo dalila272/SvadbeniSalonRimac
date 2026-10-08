@@ -4,6 +4,8 @@
 
 Nakon registracije korisnik bira **interesne skupine** (muzičke žanrove). Na osnovu tih interesa i ocjena drugih korisnika sa sličnim ukusom, API rangira aktivne ponude salona i vraća personalizovane preporuke s obrazloženjem.
 
+**Ocjenjivanje paketa nije moguće prije svadbe** — recenzija se veže na završenu svadbu (`SvadbaId` + status Completed). Collaborative filtering zato koristi ocjene nakon iskustva, a novi korisnik i dalje dobija preporuke odmah preko interesa (content-based).
+
 JWT autentifikacija ostaje zaseban mehanizam (Access Manager); **ne zamjenjuje** sistem preporuke.
 
 ## Podaci
@@ -12,7 +14,7 @@ JWT autentifikacija ostaje zaseban mehanizam (Access Manager); **ne zamjenjuje**
 |---------|--------|
 | `UserZanr` | Interesi korisnika (veza User ↔ Zanr) |
 | `MuzicarZanr` / `MuzicarPonuda` | Veza žanr → muzičar → paket |
-| `Recenzija` | Ocjene nakon završene svadbe (kolaborativni signal) |
+| `Recenzija` | Ocjene **isključivo** nakon završene svadbe (kolaborativni signal) |
 
 ## API
 
@@ -30,11 +32,11 @@ Za svaku aktivnu ponudu računa se skor:
 2. **Slični korisnici (30%)** — korisnici koji su visoko ocijenili iste pakete (ili dijele interese), pa se favorizuju paketi koje su oni ocijenili ≥ 4
 3. **Popularnost (15%)** — prosječna ocjena paketa
 
-Ako korisnik ima interese, u rezultat ulaze **samo paketi s barem jednim poklapanjem žanra** (popularnost sama ne gurа sve ponude u „Preporučeno“).
+Ako korisnik ima interese, u rezultat ulaze **samo paketi s barem jednim poklapanjem žanra** (popularnost sama ne gura sve ponude u „Preporučeno“).
 
 Odgovor uključuje `razlog` (npr. „Odgovara vašim interesima: Pop, Rock“) i `matchingZanrovi`.
 
-Ako korisnik nema interesa/ocjena, vraćaju se popularni paketi s odgovarajućim obrazloženjem.
+Ako korisnik nema interesa, vraćaju se popularni paketi (prosječne ocjene nakon završenih svadbi) s odgovarajućim obrazloženjem.
 
 ### Primjer seed mapiranja (demo)
 
